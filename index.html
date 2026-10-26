@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>하늘 친구들 ✈️</title>
+  <meta name="description" content="비행기를 좋아하는 어린이를 위한 비행기 구경, 직업 소개, 크기 비교 웹페이지">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 크기 비교 화면에서 앞 비행기의 흰 테두리를 그리는 필터 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <filter id="ghost-outline" x="-5%" y="-5%" width="110%" height="110%">
+      <!-- 반투명한 가장자리 찌꺼기는 무시하고 확실한 기체 부분만 테두리로 -->
+      <feComponentTransfer in="SourceAlpha" result="solid">
+        <feFuncA type="discrete" tableValues="0 0 1 1"/>
+      </feComponentTransfer>
+      <feMorphology in="solid" operator="dilate" radius="2" result="thick"/>
+      <feComposite in="thick" in2="solid" operator="out" result="edge"/>
+      <feFlood flood-color="#ffffff"/>
+      <feComposite in2="edge" operator="in"/>
+    </filter>
+  </svg>
+
+  <div class="clouds" aria-hidden="true">
+    <span class="cloud c1"></span><span class="cloud c2"></span><span class="cloud c3"></span>
+  </div>
+
+  <header class="topbar">
+    <a href="#/" class="icon-btn" id="home-btn" aria-label="처음 화면으로">🏠</a>
+    <h1 id="page-title">하늘 친구들</h1>
+    <button class="icon-btn speak-btn" id="speak-btn" aria-label="읽어주기">🔊</button>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <script src="js/data/countries.js"></script>
+  <script src="js/data/planes.js"></script>
+  <script src="js/data/jobs.js"></script>
+  <script src="js/image-meta.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
