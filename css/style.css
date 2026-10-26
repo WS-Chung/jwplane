@@ -291,18 +291,6 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 .slide-sub { margin: 0; font-size: 22px; color: var(--ink-soft); }
 .slide-text { margin: 0; max-width: 760px; font-size: clamp(22px, 3vw, 30px); line-height: 1.55; }
 
-.steps { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; width: min(100%, 680px); }
-.steps li {
-  display: flex; align-items: center; gap: 14px; text-align: left;
-  padding: 12px 18px; border-radius: 20px; background: #f3f8ff; font-size: clamp(20px, 2.8vw, 26px);
-}
-.steps .num {
-  flex: none; width: 46px; height: 46px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--accent, #2f80ed); color: #fff; font-size: 26px;
-}
-.steps li + li::before { content: none; }
-
 .promise-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; width: 100%; }
 .promise {
   position: relative; display: flex; align-items: center; gap: 14px; text-align: left;
@@ -377,12 +365,13 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 .stage .plane-layer img { width: 100%; height: 100%; display: block; }
 .stage .plane-layer { opacity: 0; transition: opacity 0.6s ease, left 0.4s, top 0.4s, width 0.4s, height 0.4s; }
 .stage .plane-layer.current { opacity: 1; z-index: 2; animation: grow-in 0.7s ease-out; }
-.stage .plane-layer.ghost { opacity: 0.3; z-index: 3; }       /* 앞 비행기: 투명도 70% */
+/* 앞 비행기: 투명도 85% (불투명도 15%). 처음 30%였던 진하기를 절반으로 줄여 흐릿한 실루엣으로 */
+.stage .plane-layer.ghost { opacity: 0.15; z-index: 3; }
 .stage .plane-layer.outline { z-index: 4; }
 .stage .plane-layer.outline img { filter: url(#ghost-outline); }
-.stage .plane-layer.outline.show { opacity: 0.95; }
-.stage .plane-layer.old { opacity: 0.12; z-index: 1; }
-.stage .plane-layer.outline.old-show { opacity: 0.3; }
+.stage .plane-layer.outline.show { opacity: 0.5; }   /* 흰 테두리도 은은하게 */
+.stage .plane-layer.old { opacity: 0.06; z-index: 1; }
+.stage .plane-layer.outline.old-show { opacity: 0.15; }
 @keyframes grow-in { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .me { position: absolute; z-index: 5; display: flex; flex-direction: column; align-items: center; transition: left 0.5s; }
@@ -391,6 +380,7 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
   position: absolute; bottom: 100%; margin-bottom: 4px; white-space: nowrap;
   padding: 2px 8px; border-radius: 99px; background: #fff; font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.15);
 }
+.me.edge .me-label { left: -2px; }
 
 .size-info {
   margin-top: 14px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
@@ -406,6 +396,65 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 .size-info .slide-nav .dots { order: 3; flex-basis: 100%; max-width: none; }
 .size-info .slide-nav .dot { width: 12px; height: 12px; }
 
+/* 크기 비교: 차례대로 보기 / 골라서 비교하기 바꾸기 */
+.size-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.size-modes { display: inline-flex; gap: 4px; padding: 5px; border-radius: 999px; background: #fff; box-shadow: var(--shadow); }
+.mode-btn { padding: 7px 16px; border-radius: 999px; font-size: 20px; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.mode-btn:hover { background: #eef7ee; }
+.mode-btn[aria-current="page"] { background: var(--c-size); color: #fff; }
+
+/* ── 골라서 비교하기 ──────────────────────── */
+/* 두 비행기 모두 투명도 75%(불투명도 0.25)로 겹쳐 보이고, 1번 주황·2번 파랑 테두리로 구별 */
+.stage .vs-layer.on { opacity: 1; }
+.stage.both .vs-layer.on { opacity: 0.25; }
+.stage .vs-outline.on { opacity: 0; }
+.stage.both .vs-outline.on { opacity: 0.9; }
+.compare .me { z-index: 7; }
+.me[hidden], .stage-msg[hidden] { display: none; }
+.stage-msg {
+  position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 8;
+  padding: 10px 22px; border-radius: 999px; background: #fff; box-shadow: var(--shadow);
+  font-size: clamp(20px, 3vw, 30px); white-space: nowrap;
+}
+.stage-msg.top { top: 14px; transform: translateX(-50%); font-size: clamp(18px, 2.4vw, 24px); }
+.vs-picker-hint { margin: 0 0 4px; text-align: center; font-size: 17px; color: var(--ink-soft); }
+.vs-picker-hint[hidden] { display: none; }
+.vs-slots { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vs-slots .vs-mark { font-size: 28px; }
+.vs-slot {
+  display: flex; align-items: center; gap: 10px; min-width: 230px; padding: 8px 16px;
+  border: 4px solid var(--slot); border-radius: 20px; background: #fff; cursor: pointer;
+  font-size: 22px; color: var(--ink); --box-h: 40px;
+}
+.vs-slot .crop { width: min(110px, calc(var(--box-h) * var(--r))); flex: none; }
+.vs-slot .slot-num { flex: none; font-size: 18px; color: var(--slot); }
+.vs-slot.empty { border-style: dashed; color: var(--ink-soft); }
+.vs-slot.active { box-shadow: 0 0 0 5px color-mix(in srgb, var(--slot) 30%, transparent); }
+.vs-info .chip { border: 2px solid var(--slot); background: #fff; }
+.vs-picker { margin-top: 16px; padding: 14px 18px 20px; border-radius: 26px; background: rgba(255,255,255,.85); box-shadow: var(--shadow); }
+.vs-picker-title {
+  margin: 0 0 6px; text-align: center; font-weight: normal; font-size: clamp(22px, 3vw, 30px);
+  color: var(--slot);
+}
+.pick-group-title { margin: 12px 0 8px; font-size: 20px; color: #1f5d8c; text-align: center; }
+.pick-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.pick-plane {
+  position: relative; --box-h: 52px; width: 150px; padding: 8px 6px; border: none; border-radius: 16px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: #f3f8ff; font-size: 15px; color: var(--ink); box-shadow: 0 0 0 3px var(--slot, transparent);
+  transition: transform 0.15s;
+}
+.pick-plane .crop { width: min(100%, calc(var(--box-h) * var(--r))); }
+.pick-plane:hover { transform: translateY(-3px); }
+.pick-plane:active { transform: scale(0.95); }
+.pick-plane.picked { background: #fff; box-shadow: 0 0 0 4px var(--slot); }
+.pick-num {
+  position: absolute; top: -10px; right: -8px; width: 30px; height: 30px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center;
+  background: var(--slot); color: #fff; font-size: 18px; font-weight: normal;
+}
+.pick-plane.picked .pick-num { display: flex; }
+
 .finale-msg {
   position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 6;
   padding: 8px 20px; border-radius: 999px; background: #fff; box-shadow: var(--shadow);
@@ -416,11 +465,11 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 .cup-sizes { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 6px; }
 .cup-size {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  min-width: 170px; padding: 14px 22px; border: none; border-radius: 22px; cursor: pointer;
-  background: var(--accent); color: #fff; font-size: 26px; box-shadow: var(--shadow);
+  min-width: min(100%, 280px); padding: 16px 36px; border: none; border-radius: 26px; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 34px; box-shadow: var(--shadow);
   transition: transform 0.15s;
 }
-.cup-size small { font-size: 16px; opacity: 0.9; }
+.cup-size small { font-size: 18px; opacity: 0.9; }
 .cup-size:hover { transform: translateY(-3px); }
 .cup-size:active { transform: scale(0.95); }
 .cup-history { width: 100%; margin-top: 8px; }
@@ -519,6 +568,12 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
   .promise-grid { grid-template-columns: 1fr; }
   .size-info { grid-template-columns: 1fr; }
   .size-info .slide-nav { width: 100%; }
+  .size-info > div { min-width: 0; }
+  .vs-slots { flex-direction: column; align-items: stretch; gap: 6px; }
+  .vs-slots .vs-mark { align-self: center; font-size: 22px; }
+  .vs-slot { min-width: 0; font-size: 19px; padding: 6px 12px; }
+  .vs-slot .crop { width: min(72px, calc(var(--box-h) * var(--r))); }
+  .pick-plane { width: calc(50% - 5px); }
   .stage { height: clamp(200px, 62vw, 420px); }
   .detail-photo { --box-h: 40vw; height: auto; }
   .cup-arena { grid-template-columns: 1fr; gap: 8px; }

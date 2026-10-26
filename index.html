@@ -20,6 +20,21 @@
       <feFlood flood-color="#ffffff"/>
       <feComposite in2="edge" operator="in"/>
     </filter>
+    <!-- 골라서 비교하기: 1번(주황)·2번(파랑) 비행기 테두리 -->
+    <filter id="vs-outline-0" x="-5%" y="-5%" width="110%" height="110%">
+      <feComponentTransfer in="SourceAlpha" result="solid"><feFuncA type="discrete" tableValues="0 0 1 1"/></feComponentTransfer>
+      <feMorphology in="solid" operator="dilate" radius="2" result="thick"/>
+      <feComposite in="thick" in2="solid" operator="out" result="edge"/>
+      <feFlood flood-color="#ff8a00"/>
+      <feComposite in2="edge" operator="in"/>
+    </filter>
+    <filter id="vs-outline-1" x="-5%" y="-5%" width="110%" height="110%">
+      <feComponentTransfer in="SourceAlpha" result="solid"><feFuncA type="discrete" tableValues="0 0 1 1"/></feComponentTransfer>
+      <feMorphology in="solid" operator="dilate" radius="2" result="thick"/>
+      <feComposite in="thick" in2="solid" operator="out" result="edge"/>
+      <feFlood flood-color="#2f80ed"/>
+      <feComposite in2="edge" operator="in"/>
+    </filter>
   </svg>
 
   <div class="clouds" aria-hidden="true">

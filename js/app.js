@@ -6,6 +6,7 @@
     #/airliners        여객기 목록,  #/airliners/a380 여객기 자세히
     #/job/pilot/2      직업 (pilot, controller, mechanic) 의 2번째 장
     #/size/3           크기 비교 3번째 비행기
+    #/size/vs/f16/b747 골라서 비교하기 (고른 비행기 2대)
 */
 (function () {
   "use strict";
@@ -26,6 +27,7 @@
   const BUS_LENGTH = 12;    // 버스 한 대 길이 = 12m
   const FLOOR_HEIGHT = 2.8; // 아파트 한 층 높이 = 2.8m
   const KID_HEIGHT = 1.2;   // 만 6세 어린이 키 = 약 120cm
+  const KID_NAME = "정우";  // 크기 비교 화면 활주로 위에 서 있는 어린이 이름
   const MAX_SPEED = Math.max(...Object.values(P).map((p) => p.speed));
   const JOB_KEYS = ["pilot", "controller", "mechanic"];
 
@@ -228,8 +230,10 @@
         say: `${who} ${p.people}명이 타요.`.trim() };
     }
     const bus = Math.max(1, Math.round(p.people / BUS_SEATS));
-    return { icons: "🚌".repeat(Math.min(bus, 10)), big: `약 ${fmt(p.people)}명`, small: `버스 ${bus}대에 탄 사람만큼`,
-      say: `약 ${p.people}명이 탈 수 있어요. 버스 ${bus}대에 탄 사람만큼이에요.` };
+    // 정확한 좌석 수 대신 10명 단위 어림수로 (예: 407 → 410명, 189 → 190명). "약"은 붙이지 않음
+    const n = Math.round(p.people / 10) * 10;
+    return { icons: "🚌".repeat(Math.min(bus, 10)), big: `${fmt(n)}명`, small: `버스 ${bus}대에 탄 사람만큼`,
+      say: `${n}명이 탈 수 있어요. 버스 ${bus}대에 탄 사람만큼이에요.` };
   }
 
   function speedFact(p) {
@@ -343,8 +347,7 @@
     const slides = [
       { type: "intro" },
       ...j.scenes.map((s, n) => ({ type: "scene", s, n })),
-      { type: "steps" },
-      { type: "promise" },
+      { type: "promise" }, // 나도 될래요! (학교·시험 같은 어른 이야기 대신 오늘부터 할 수 있는 약속만)
     ];
     let i = clamp(start, 0, slides.length - 1);
     setTitle(`${j.title} · ${j.easy}`);
@@ -378,19 +381,9 @@
           say: `${sl.s.title}. ${sl.s.text}`,
         };
       }
-      if (sl.type === "steps") {
-        const nth = ["첫째", "둘째", "셋째"];
-        return {
-          html: `<div class="slide-kicker">나도 될래요!</div>
-            <div class="slide-emoji" aria-hidden="true">🎓</div>
-            <h2 class="slide-title">${j.title}가 되려면?</h2>
-            <ol class="steps">${j.steps.map((t, n) => `<li><span class="num">${n + 1}</span>${t}</li>`).join("")}</ol>`,
-          say: `${j.title}가 되려면, ${j.steps.map((t, n) => `${nth[n]}, ${t}.`).join(" ")}`,
-        };
-      }
       const done = Store.get()[key] || [];
       return {
-        html: `<div class="slide-kicker">지금부터 약속해요</div>
+        html: `<div class="slide-kicker">나도 될래요!</div>
           <h2 class="slide-title">${j.title}가 되고 싶다면!</h2>
           <p class="promise-hint">약속할 수 있으면 눌러서 도장을 꾹 찍어요 👆</p>
           <div class="promise-grid">
@@ -458,11 +451,11 @@
 
   // ───────── 누가 누가 클까? (크기 비교) ─────────
   const SIZE_NOTES = {
-    c172: "제일 작은 비행기부터 출발! 활주로 위의 작은 ‘나’도 찾아보세요.",
+    c172: `제일 작은 비행기부터 출발! 활주로 위에 서 있는 ${KID_NAME}도 찾아보세요.`,
     atr72: "이제부터는 사람을 태우는 비행기예요!",
     concorde: "길쭉하고 날씬하죠? 그래서 키는 작아요.",
     b747: "엄청 크죠? 그런데 아직 하나 더 남았어요!",
-    a380: "짜잔! 세상에서 가장 큰 여객기예요. 747과 길이는 비슷하지만 키가 훨씬 크고, 2층이에요!",
+    a380: "짜잔! 사람을 태우는 비행기 중에서 세상에서 제일 커요. 747과 길이는 비슷하지만 키가 훨씬 크고, 2층이에요!",
   };
 
   const KID_SVG = `<svg viewBox="0 0 40 100" preserveAspectRatio="none" aria-hidden="true">
@@ -471,6 +464,74 @@
       <rect x="10" y="62" width="8" height="36" rx="4" fill="#3d5a80"/>
       <rect x="22" y="62" width="8" height="36" rx="4" fill="#3d5a80"/>
     </svg>`;
+
+  // 크기 비교 화면 위쪽: 제목 + "차례대로 보기 / 골라서 비교하기" 바꾸기 버튼 (+ 화면별 도구)
+  function sizeTop(mode, extra = "") {
+    const tab = (m, href, label) =>
+      `<a class="mode-btn" href="${href}" ${mode === m ? 'aria-current="page"' : ""}>${label}</a>`;
+    return `
+      <div class="size-top">
+        <h2 class="section-title">📏 누가 누가 클까? <small>비행기 크기 비교</small></h2>
+        <div class="size-tools">
+          <nav class="size-modes" aria-label="크기 비교 방법">
+            ${tab("order", "#/size/0", "📏 차례대로 보기")}
+            ${tab("vs", "#/size/vs", "👆 골라서 비교하기")}
+          </nav>
+          ${extra}
+        </div>
+      </div>`;
+  }
+
+  // 무대 크기와 비행기 목록으로 축척(1m = ppm px)을 정함. 목록에서 가장 큰 비행기가 무대에 꼭 맞도록
+  function stageScale(stage, ids) {
+    const W = stage.clientWidth;
+    const H = stage.clientHeight;
+    const groundH = Math.max(30, Math.round(H * 0.09));
+    stage.style.setProperty("--ground-h", groundH + "px");
+    const groundY = H - Math.round(groundH * 0.55);
+    const usableH = groundY - 64; // 위쪽에 안내 문구 자리
+    let ppm = Infinity;
+    ids.forEach((id) => {
+      const b = box(id);
+      const L = P[id].length;
+      ppm = Math.min(ppm, (W * 0.94) / L, usableH / ((L * b.h) / b.w));
+    });
+    return { W, groundY, ppm };
+  }
+
+  // 비행기 그림(1600x800 캔버스)을 실제 길이 비율 크기로 무대 가운데 땅 위에 놓음. 기체 부분의 왼쪽 끝·폭을 돌려줌
+  function placePlane(els, id, { W, groundY, ppm }) {
+    const b = box(id);
+    const cw = META.canvas.w;
+    const ch = META.canvas.h;
+    const planeW = P[id].length * ppm;        // 화면에서 기체 길이(px)
+    const w = (planeW * cw) / b.w;            // 이미지 전체 폭(px)
+    const h = (w * ch) / cw;
+    const left = W / 2 - ((b.x + b.w / 2) / cw) * w;
+    const top = groundY - ((b.y + b.h) / ch) * h;
+    els.forEach((el) => {
+      el.style.left = left + "px";
+      el.style.top = top + "px";
+      el.style.width = w + "px";
+      el.style.height = h + "px";
+    });
+    return { left: left + (b.x / cw) * w, width: planeW };
+  }
+
+  // 활주로 위 어린이(정우)를 같은 축척으로 그림
+  function sizeKid(me, { groundY, ppm }) {
+    const kidH = KID_HEIGHT * ppm;
+    const svg = me.querySelector("svg");
+    svg.style.height = kidH + "px";
+    svg.style.width = kidH * 0.42 + "px";
+    me.style.top = groundY - kidH + "px";
+  }
+  function kidBeside(me, planeLeft) {
+    const kidW = parseFloat(me.querySelector("svg").style.width) || 8;
+    const left = Math.max(6, planeLeft - kidW - 10);
+    me.style.left = left + "px";
+    me.classList.toggle("edge", left < 30); // 무대 왼쪽 끝이면 이름표가 잘리지 않게 오른쪽으로
+  }
 
   function viewSize(start) {
     const order = window.SIZE_ORDER;
@@ -481,16 +542,13 @@
 
     app.innerHTML = `
       <section class="size" style="--accent:var(--c-size)">
-        <div class="size-top">
-          <h2 class="section-title">📏 누가 누가 클까? <small>비행기 크기 비교</small></h2>
-          <label class="toggle"><input type="checkbox" id="show-all"> 앞 비행기 모두 보기</label>
-        </div>
+        ${sizeTop("order", `<label class="toggle"><input type="checkbox" id="show-all"> 앞 비행기 모두 보기</label>`)}
         <div class="stage" id="stage" role="img" aria-label="비행기를 실제 크기 비율로 겹쳐 그린 그림">
           <div class="ground"></div>
           ${order.map((id) => `
             <div class="plane-layer" data-id="${id}"><img src="${imgSrc(id)}" alt=""></div>
             <div class="plane-layer outline" data-id="${id}"><img src="${imgSrc(id)}" alt=""></div>`).join("")}
-          <div class="me" id="me"><span class="me-label">나</span>${KID_SVG}</div>
+          <div class="me" id="me"><span class="me-label">${KID_NAME}</span>${KID_SVG}</div>
           <div id="finale"></div>
         </div>
         <p class="rotate-hint">📱 휴대폰을 옆으로 돌리면 더 크게 보여요</p>
@@ -513,49 +571,17 @@
 
     // 모든 비행기를 같은 축척(1m = 몇 px)으로 배치. 가장 큰 A380이 무대에 꼭 맞도록 축척을 정함
     function layout() {
-      const W = stage.clientWidth;
-      const H = stage.clientHeight;
-      const groundH = Math.max(30, Math.round(H * 0.09));
-      stage.style.setProperty("--ground-h", groundH + "px");
-      const groundY = H - Math.round(groundH * 0.55);
-      const usableH = groundY - 64; // 위쪽에 안내 문구 자리
-      const cw = META.canvas.w;
-      const ch = META.canvas.h;
-      let ppm = Infinity;
+      const sc = stageScale(stage, order);
       order.forEach((id) => {
-        const b = box(id);
-        const L = P[id].length;
-        ppm = Math.min(ppm, (W * 0.94) / L, usableH / ((L * b.h) / b.w));
+        pos[id] = placePlane(layers.filter((el) => el.dataset.id === id), id, sc);
       });
-      order.forEach((id) => {
-        const b = box(id);
-        const planeW = P[id].length * ppm;        // 화면에서 기체 길이(px)
-        const w = (planeW * cw) / b.w;            // 이미지 전체 폭(px)
-        const h = (w * ch) / cw;
-        const left = W / 2 - ((b.x + b.w / 2) / cw) * w;
-        const top = groundY - ((b.y + b.h) / ch) * h;
-        pos[id] = { left: left + (b.x / cw) * w, width: planeW };
-        layers.filter((el) => el.dataset.id === id).forEach((el) => {
-          el.style.left = left + "px";
-          el.style.top = top + "px";
-          el.style.width = w + "px";
-          el.style.height = h + "px";
-        });
-      });
-      const kidH = KID_HEIGHT * ppm;
-      const svg = me.querySelector("svg");
-      svg.style.height = kidH + "px";
-      svg.style.width = kidH * 0.42 + "px";
-      me.style.top = groundY - kidH + "px";
-      me.dataset.groundY = groundY;
+      sizeKid(me, sc);
       placeKid();
     }
 
     function placeKid() {
       const p = pos[order[i]];
-      if (!p) return;
-      const kidW = parseFloat(me.querySelector("svg").style.width) || 8;
-      me.style.left = Math.max(6, p.left - kidW - 10) + "px";
+      if (p) kidBeside(me, p.left);
     }
 
     function update(n) {
@@ -615,13 +641,176 @@
     update(i);
   }
 
+  // ───────── 골라서 비교하기 (아이가 고른 비행기 2대만 겹쳐서 크기 비교) ─────────
+  // 두 비행기 모두 투명도 75%(불투명도 0.25)로 겹쳐 그리고, 1번은 주황·2번은 파랑 테두리로 구별해요.
+  const VS_SLOTS = [{ color: "#ff8a00", mark: "🟠" }, { color: "#2f80ed", mark: "🔵" }];
+  const comparable = (id) => !!(P[id] && P[id].length && META.planes[id]);
+
+  function viewCompare(first, second) {
+    setTitle("누가 누가 클까?");
+    const sel = [first, second].map((id) => (comparable(id) ? id : null));
+    if (sel[0] && sel[0] === sel[1]) sel[1] = null;
+    let active = null; // 다음에 고를 칸 (null이면 비어 있는 칸, 다 찼으면 2번)
+    const extras = window.SIZE_ORDER.filter((id) => !window.FIGHTERS.includes(id) && !window.AIRLINERS.includes(id));
+    const groups = [
+      ["🛡️ 하늘을 지키는 비행기", window.FIGHTERS],
+      ["✈️ 사람을 태우는 비행기", window.AIRLINERS],
+      ["🛩️ 작은 프로펠러 비행기", extras],
+    ];
+
+    app.innerHTML = `
+      <section class="size compare" style="--accent:var(--c-size)">
+        ${sizeTop("vs")}
+        <div class="stage" id="stage" role="img" aria-label="고른 비행기 두 대를 실제 크기 비율로 겹쳐 그린 그림">
+          <div class="ground"></div>
+          ${VS_SLOTS.map((s, k) => `
+            <div class="plane-layer vs-layer" data-slot="${k}"><img alt=""></div>
+            <div class="plane-layer vs-outline" data-slot="${k}"><img alt="" style="filter:url(#vs-outline-${k})"></div>`).join("")}
+          <div class="me" id="me" hidden><span class="me-label">${KID_NAME}</span>${KID_SVG}</div>
+          <div class="stage-msg" id="stage-msg"></div>
+        </div>
+        <p class="rotate-hint">📱 휴대폰을 옆으로 돌리면 더 크게 보여요</p>
+        <div class="size-info vs-info">
+          <div>
+            <div class="vs-slots">
+              ${VS_SLOTS.map((s, k) => `${k ? '<span class="vs-mark" aria-hidden="true">VS</span>' : ""}
+                <button class="vs-slot" data-slot="${k}" style="--slot:${s.color}"></button>`).join("")}
+            </div>
+            <div class="size-facts" id="vs-facts"></div>
+            <div class="size-note" id="vs-note"></div>
+          </div>
+          <button class="small-btn" id="vs-reset">🔁 다시 고르기</button>
+        </div>
+        <div class="vs-picker">
+          <h3 class="vs-picker-title" id="vs-picker-title"></h3>
+          <p class="vs-picker-hint" id="vs-picker-hint" hidden>다른 쪽을 바꾸고 싶으면 위의 1번이나 2번 칸을 눌러요</p>
+          ${groups.map(([label, ids]) => `
+            <div class="pick-group-title">${label}</div>
+            <div class="pick-grid">
+              ${ids.filter(comparable).map((id) => `
+                <button class="pick-plane" data-id="${id}" aria-label="${P[id].name}">
+                  ${planeImg(id, { thumb: true })}<span>${P[id].name}</span><b class="pick-num" aria-hidden="true"></b>
+                </button>`).join("")}
+            </div>`).join("")}
+        </div>
+      </section>`;
+
+    const stage = app.querySelector("#stage");
+    const me = stage.querySelector("#me");
+    const slotLayers = (k) => [...stage.querySelectorAll(`.plane-layer[data-slot="${k}"]`)];
+
+    // 다음에 채울 칸: 직접 누른 칸 → 비어 있는 1번 → 그 밖에는 2번 (첫 번째로 고른 비행기와 계속 비교해 보기 좋게)
+    const nextSlot = () => (active !== null ? active : sel[0] ? 1 : 0);
+
+    function layout() {
+      const ids = sel.filter(Boolean);
+      me.hidden = !ids.length;
+      stage.classList.toggle("both", ids.length === 2);
+      sel.forEach((id, k) => slotLayers(k).forEach((el) => el.classList.toggle("on", !!id)));
+      if (!ids.length) return;
+      const sc = stageScale(stage, ids);
+      let minLeft = Infinity;
+      // 긴 비행기를 뒤에, 짧은 비행기를 앞에
+      const longFirst = ids.slice().sort((x, y) => P[y].length - P[x].length);
+      sel.forEach((id, k) => {
+        const els = slotLayers(k);
+        if (!id) return;
+        els.forEach((el) => {
+          const img = el.querySelector("img");
+          if (img.getAttribute("src") !== imgSrc(id)) img.src = imgSrc(id);
+          el.style.zIndex = (el.classList.contains("vs-outline") ? 4 : 2) + longFirst.indexOf(id);
+        });
+        minLeft = Math.min(minLeft, placePlane(els, id, sc).left);
+      });
+      sizeKid(me, sc);
+      kidBeside(me, minLeft);
+    }
+
+    function compareNote(a, b) {
+      const [long, short] = a.length >= b.length ? [a, b] : [b, a];
+      const r = long.length / short.length;
+      const lenText = r < 1.05 ? "두 비행기 길이가 거의 똑같아요!"
+        : `더 긴 비행기는 ${long.name}! ${short.name}보다 ${r >= 1.75 ? `${Math.round(r)}배쯤` : r >= 1.2 ? "훨씬" : "조금"} 길어요.`;
+      const [tall, low] = a.height >= b.height ? [a, b] : [b, a];
+      const hText = tall.height / low.height < 1.05 ? "키는 거의 같아요."
+        : tall === long && r >= 1.05 ? "키도 더 커요." : `키가 더 큰 비행기는 ${tall.name}!`;
+      return `${lenText} ${hText}`;
+    }
+
+    function render() {
+      sel.forEach((id, k) => {
+        const btn = app.querySelector(`.vs-slot[data-slot="${k}"]`);
+        const s = VS_SLOTS[k];
+        btn.classList.toggle("active", nextSlot() === k);
+        btn.classList.toggle("empty", !id);
+        btn.innerHTML = id
+          ? `<span class="slot-num">${s.mark} ${k + 1}번</span>${planeImg(id, { thumb: true })}<span class="slot-name">${P[id].name}</span>`
+          : `<span class="slot-num">${s.mark} ${k + 1}번</span><span class="slot-name">골라요 👇</span>`;
+        btn.setAttribute("aria-label", `${k + 1}번 비행기${id ? `: ${P[id].name}` : ""}. 눌러서 바꾸기`);
+      });
+      app.querySelectorAll(".pick-plane").forEach((b) => {
+        const k = sel.indexOf(b.dataset.id);
+        b.classList.toggle("picked", k >= 0);
+        b.setAttribute("aria-pressed", k >= 0);
+        b.style.setProperty("--slot", k >= 0 ? VS_SLOTS[k].color : "transparent");
+        b.querySelector(".pick-num").textContent = k >= 0 ? k + 1 : "";
+      });
+      const k = nextSlot();
+      const title = app.querySelector("#vs-picker-title");
+      title.style.setProperty("--slot", VS_SLOTS[k].color);
+      title.textContent = sel[k] && sel[1 - k]
+        ? `${VS_SLOTS[k].mark} ${k + 1}번 비행기를 바꿔 볼까요?`
+        : `${VS_SLOTS[k].mark} ${k + 1}번 비행기를 골라요`;
+      app.querySelector("#vs-picker-hint").hidden = !(sel[0] && sel[1]);
+
+      const [a, b] = sel.map((id) => id && P[id]);
+      const msg = app.querySelector("#stage-msg");
+      msg.textContent = !a && !b ? "비교하고 싶은 비행기 2대를 골라요 👇" : a && b ? "" : "하나 더 골라요 👇";
+      msg.hidden = !msg.textContent;
+      msg.classList.toggle("top", !!(a || b)); // 비행기가 있으면 가리지 않게 위쪽으로
+      app.querySelector("#vs-facts").innerHTML = sel.map((id, n) => id
+        ? `<span class="chip" style="--slot:${VS_SLOTS[n].color}">${VS_SLOTS[n].mark} 📏 ${P[id].length}m · 🏢 높이 ${P[id].height}m</span>` : "").join("");
+      const note = a && b ? compareNote(a, b) : "";
+      app.querySelector("#vs-note").textContent = note;
+      app.querySelector("#vs-reset").hidden = !a && !b;
+      layout();
+
+      history.replaceState(null, "", `#/size/vs${sel[0] || sel[1] ? `/${sel[0] || "-"}` : ""}${sel[1] ? `/${sel[1]}` : ""}`);
+      Speech.set(a && b
+        ? `${a.name}, 그리고 ${b.name}. ${note}`
+        : "비교하고 싶은 비행기 두 대를 골라 보세요. 고른 두 비행기를 같은 크기 비율로 겹쳐서 보여줘요.");
+    }
+
+    app.querySelectorAll(".pick-plane").forEach((btn) => btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const k = nextSlot();
+      if (sel[1 - k] === id) return; // 다른 칸에 이미 있는 비행기는 그대로
+      sel[k] = id;
+      active = null;
+      render();
+      // 두 대가 다 골라지면 비교 무대가 보이도록 위로
+      if (sel[0] && sel[1]) stage.scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
+    app.querySelectorAll(".vs-slot").forEach((btn) => btn.addEventListener("click", () => {
+      active = +btn.dataset.slot;
+      render();
+      app.querySelector(".vs-picker").scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+    app.querySelector("#vs-reset").addEventListener("click", () => {
+      sel[0] = sel[1] = null;
+      active = null;
+      render();
+    });
+
+    const onResize = () => layout();
+    window.addEventListener("resize", onResize);
+    cleanup = () => window.removeEventListener("resize", onResize);
+    render();
+  }
+
   // ───────── 최고의 비행기 고르기 (이상형 월드컵) ─────────
-  // 전투기·여객기를 섞어 무작위로 N대를 뽑고, 두 대씩 겨뤄서 고른 비행기만 다음 판으로 올라가요.
-  const CUP_SIZES = [
-    { n: 8, label: "비행기 8대", sub: "금방 끝나요" },
-    { n: 16, label: "비행기 16대", sub: "딱 좋아요" },
-    { n: 32, label: "비행기 32대", sub: "오래 걸려요" },
-  ];
+  // 전투기·여객기 40대를 섞어 무작위로 32대를 뽑고, 두 대씩 겨뤄서 고른 비행기만 다음 판으로 올라가요. (32강 → 결승, 31번 고르기)
+  const CUP_SIZE = 32;
   const CupStore = {
     key: "skyfriends.cup.v1",
     get() {
@@ -664,7 +853,7 @@
             <h2 class="slide-title">누가 더 멋있나?</h2>
             <p class="slide-text">두 비행기 중에서 더 멋진 비행기를 골라요.<br>끝까지 남은 비행기가 최고의 비행기!</p>
             <div class="cup-sizes">
-              ${CUP_SIZES.map((s) => `<button class="cup-size" data-n="${s.n}"><span>${s.label}</span><small>${s.sub}</small></button>`).join("")}
+              <button class="cup-size" id="cup-start"><span>▶️ 시작하기</span><small>비행기 ${CUP_SIZE}대 · ${roundName(CUP_SIZE)}부터</small></button>
             </div>
             ${past.length ? `
               <div class="cup-history">
@@ -675,12 +864,13 @@
               </div>` : ""}
           </div>
         </section>`;
-      app.querySelectorAll(".cup-size").forEach((b) => b.addEventListener("click", () => start(+b.dataset.n)));
+      app.querySelector("#cup-start").addEventListener("click", start);
       Speech.stop();
-      Speech.set("최고의 비행기 고르기! 두 비행기 중에서 더 멋진 비행기를 골라요. 끝까지 남은 비행기가 최고의 비행기예요. 비행기를 몇 대로 할지 골라 보세요.");
+      Speech.set(`최고의 비행기 고르기! 두 비행기 중에서 더 멋진 비행기를 골라요. 끝까지 남은 비행기가 최고의 비행기예요. 시작하기를 눌러 보세요.`);
     }
 
-    function start(n) {
+    function start() {
+      const n = CUP_SIZE;
       st = { entrants: shuffle(pool).slice(0, n), winners: [], m: 0, played: 0, total: n - 1, semis: [], finalPair: null };
       history = [];
       match();
@@ -802,10 +992,11 @@
     if (cleanup) { cleanup(); cleanup = null; }
     document.querySelectorAll(".celebrate").forEach((el) => el.remove());
 
-    const [a, b, c] = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+    const [a, b, c, d] = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
     if ((a === "fighters" || a === "airliners") && b) viewDetail(a, b);
     else if (a === "fighters" || a === "airliners") viewGallery(a);
     else if (a === "job" && J[b]) viewJob(b, parseInt(c, 10) || 0);
+    else if (a === "size" && b === "vs") viewCompare(c, d);
     else if (a === "size") viewSize(parseInt(b, 10) || 0);
     else if (a === "cup") viewCup();
     else viewHome();

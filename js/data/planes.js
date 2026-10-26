@@ -112,13 +112,14 @@ window.PLANES = {
   a380: {
     name: "에어버스 A380", country: ["eu"], countryText: "유럽 여러 나라", airline: "대한항공",
     people: 407, speed: 900, length: 72.7, height: 24.1,
-    nick: "하늘을 나는 2층 버스", tag: "세상에서 가장 큰 여객기",
-    feature: "세상에서 가장 큰 여객기예요! 비행기 안이 1층과 2층으로 나뉘어 있어요.",
+    nick: "하늘을 나는 2층 버스", tag: "사람을 태우는 가장 큰 비행기",
+    feature: "사람을 태우는 비행기 중에서 세상에서 가장 커요! 비행기 안이 1층과 2층으로 나뉘어 있어요.",
   },
+  // 747·787은 크기 비교에서 A380(대한항공)과 색이 겹쳐 헷갈리지 않도록 다른 항공사 사진을 씀
   b747: {
-    name: "보잉 747", country: ["us"], airline: "대한항공", people: 404, speed: 910, length: 70.7, height: 19.4,
+    name: "보잉 747", country: ["us"], airline: "루프트한자", people: 371, speed: 910, length: 70.7, height: 19.4,
     nick: "‘하늘의 여왕’이라는 별명",
-    feature: "머리 위에 혹이 볼록! 그 안에도 의자가 있어요. 엔진이 4개예요.",
+    feature: "머리 위에 혹이 볼록! 그 안에도 의자가 있어요. 엔진이 4개예요. 꼬리의 새 그림은 독일 루프트한자의 두루미예요.",
   },
   b777: {
     name: "보잉 777", country: ["us"], airline: "대한항공", people: 300, speed: 905, length: 73.9, height: 18.5,
@@ -126,9 +127,9 @@ window.PLANES = {
     feature: "엔진 입구가 작은 비행기 몸통만큼 커요! 엔진 두 개로 먼 나라까지 날아가요.",
   },
   b787: {
-    name: "보잉 787 드림라이너", country: ["us"], airline: "대한항공", people: 269, speed: 900, length: 62.8, height: 17.0,
+    name: "보잉 787 드림라이너", country: ["us"], airline: "ANA 전일본공수", people: 246, speed: 900, length: 62.8, height: 17.0,
     nick: "‘드림라이너’는 꿈의 비행기",
-    feature: "날 때 날개가 새처럼 위로 휘어져요. 창문이 크고, 버튼으로 창문 색이 바뀌어요.",
+    feature: "날 때 날개가 새처럼 위로 휘어져요. 창문이 크고, 버튼으로 창문 색이 바뀌어요. 이 비행기는 일본 항공사 ANA의 비행기예요.",
   },
   a350: {
     name: "에어버스 A350", country: ["eu"], countryText: "유럽 여러 나라", airline: "아시아나항공",
@@ -156,7 +157,7 @@ window.PLANES = {
   b737: {
     name: "보잉 737", country: ["us"], airline: "제주항공", people: 189, speed: 840, length: 39.5, height: 12.5,
     nick: "제주도 가는 비행기",
-    feature: "제주도 갈 때 많이 타요! 세상에서 가장 많이 만들어진 여객기 가족이에요.",
+    feature: "제주도 갈 때 많이 타요! 사람을 태우는 큰 비행기 중에서 가장 많이 만들어진 비행기 가족이에요.",
   },
   a321: {
     name: "에어버스 A321neo", country: ["eu"], countryText: "유럽 여러 나라", airline: "아시아나항공",
@@ -167,7 +168,7 @@ window.PLANES = {
   a220: {
     name: "에어버스 A220", country: ["ca", "eu"], countryText: "캐나다와 유럽", airline: "대한항공",
     people: 140, speed: 830, length: 38.7, height: 11.5,
-    nick: "조용조용 꼬마 여객기",
+    nick: "조용조용 꼬마 비행기",
     feature: "캐나다에서 태어나서 에어버스 가족이 되었어요. 창문이 커서 바깥 구경하기 좋아요.",
   },
   e195: {
@@ -189,12 +190,12 @@ window.PLANES = {
   concorde: {
     name: "콩코드", country: ["gb", "fr"], countryText: "영국과 프랑스", airline: "영국항공",
     people: 100, speed: 2180, length: 61.7, height: 12.2,
-    nick: "‘콩코드’는 사이좋게 함께라는 뜻", tag: "소리보다 빠른 여객기",
-    feature: "소리보다 2배나 빨랐던 여객기예요! 뾰족한 코가 착륙할 때 아래로 꺾여요. 지금은 박물관에서 쉬어요.",
+    nick: "‘콩코드’는 사이좋게 함께라는 뜻", tag: "소리보다 빠른 비행기",
+    feature: "사람을 태우고 소리보다 2배나 빨리 날았던 비행기예요! 뾰족한 코가 착륙할 때 아래로 꺾여요. 지금은 박물관에서 쉬어요.",
   },
   dc3: {
     name: "더글러스 DC-3", country: ["us"], people: 28, speed: 333, length: 19.7, height: 5.2,
-    nick: "90살 할아버지 여객기", tag: "옛날 비행기",
+    nick: "90살 할아버지 비행기", tag: "옛날 비행기",
     feature: "1935년에 처음 날았어요. 땅에서는 꼬리를 바닥에 대고 앉아 있어요.",
   },
   md11: {
@@ -204,8 +205,8 @@ window.PLANES = {
   },
   c919: {
     name: "코맥 C919", country: ["cn"], airline: "중국동방항공", people: 158, speed: 830, length: 38.9, height: 12.0,
-    nick: "중국에서 태어난 여객기",
-    feature: "중국이 직접 만든 여객기예요. 2023년부터 손님을 태우기 시작했어요.",
+    nick: "중국에서 태어난 비행기",
+    feature: "중국이 직접 만든 비행기예요. 2023년부터 손님을 태우기 시작했어요.",
   },
   beluga: {
     name: "에어버스 벨루가 XL", country: ["eu"], countryText: "유럽 여러 나라", cargo: true,
