@@ -89,11 +89,19 @@ button, a { font-family: inherit; color: inherit; }
   transition: transform 0.15s;
 }
 .icon-btn:active { transform: scale(0.92); }
-.icon-btn[hidden] { display: none; }
-.speak-btn.speaking { background: #ffe27a; animation: pulse 1s ease-in-out infinite; }
-@keyframes pulse { 50% { transform: scale(1.08); } }
+/* 왼쪽 위 "🏠 처음부터 다시보기" (오른쪽에는 같은 폭의 빈 자리를 둬서 제목이 가운데) */
+.home-btn {
+  flex: none; height: 56px; padding: 0 16px 0 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 18px; background: #fff; box-shadow: var(--shadow);
+  text-decoration: none; color: var(--ink); white-space: nowrap; transition: transform 0.15s;
+}
+.home-btn:active { transform: scale(0.95); }
+.home-btn .home-emoji { font-size: 30px; line-height: 1; }
+.home-btn .home-label { font-size: 19px; }
+.home-btn.spacer { visibility: hidden; box-shadow: none; }
 
-main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
+main { padding: 12px clamp(12px, 3vw, 36px) 40px; }
 #app:focus, #app:focus-visible { outline: none; } /* 화면 바뀔 때 옮겨 온 초점 테두리는 숨김 */
 
 .section-title {
@@ -103,12 +111,9 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 .section-title small { font-size: 0.55em; color: var(--ink-soft); }
 
 /* ── 처음 화면 ───────────────────────────── */
-.hero { text-align: center; margin: 0 0 16px; }
-.hero h2 { margin: 0; font-size: clamp(38px, 6vw, 62px); font-weight: normal; color: #fff;
+.hero { text-align: center; margin: 0 0 10px; }
+.hero h2 { margin: 0; line-height: 1.15; font-size: clamp(38px, 6vw, 62px); font-weight: normal; color: #fff;
   text-shadow: 0 4px 0 #3a8fd0, 0 8px 18px rgba(0, 0, 0, 0.18); }
-.hero p { margin: 6px 0 0; font-size: clamp(20px, 3vw, 28px); color: #1f5d8c; }
-.hero-plane { font-size: 46px; display: inline-block; animation: fly 3s ease-in-out infinite; }
-@keyframes fly { 50% { transform: translate(14px, -10px) rotate(-6deg); } }
 
 /* 메뉴는 두 묶음(비행기 4개 + 직업 3개). 줄마다 가운데 정렬이라 개수가 모자란 줄도 한쪽으로 쏠리지 않음 */
 .menu-group { max-width: 1200px; margin: 0 auto 22px; }
@@ -252,7 +257,9 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
   margin: 16px auto 0; max-width: 900px; padding: 14px 18px; border-radius: 20px;
   background: #fff8dc; font-size: clamp(20px, 2.6vw, 26px); line-height: 1.5;
 }
-.detail-counter { grid-column: 1 / -1; text-align: center; font-size: 18px; color: var(--ink-soft); }
+.detail-counter { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 18px; }
+.detail-counter .dots { max-width: min(92vw, 640px); }
+.back-link { padding: 6px 18px; border-radius: 999px; background: #fff; box-shadow: var(--shadow); color: #1f5d8c; text-decoration: none; font-size: 19px; }
 
 /* ── 넘기기형 화면 (직업) ────────────────── */
 .slides { max-width: 1000px; margin: 0 auto; }
@@ -460,12 +467,6 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 }
 .pick-plane.picked .pick-num { display: flex; }
 
-.finale-msg {
-  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 6;
-  padding: 8px 20px; border-radius: 999px; background: #fff; box-shadow: var(--shadow);
-  font-size: clamp(20px, 3vw, 30px); white-space: nowrap; animation: pop 0.5s ease-out;
-}
-
 /* ── 최고의 비행기 고르기 ────────────────── */
 .cup-sizes { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 6px; }
 .cup-size {
@@ -565,6 +566,11 @@ main { padding: 20px clamp(12px, 3vw, 36px) 40px; }
 @media (max-width: 760px) {
   :root { --topbar-h: 62px; }
   .icon-btn { width: 48px; height: 48px; font-size: 26px; }
+  /* 휴대폰: "처음부터 / 다시보기" 두 줄로 작게 */
+  .home-btn { height: 50px; padding: 0 10px 0 8px; gap: 4px; }
+  .home-btn .home-emoji { font-size: 24px; }
+  .home-btn .home-label { font-size: 13px; line-height: 1.15; white-space: normal; width: 4.4em; }
+  .topbar h1 { font-size: 20px; }
   .detail { grid-template-columns: 1fr 1fr; }
   .detail-card { grid-column: 1 / -1; grid-row: 1; }
   .detail .nav-arrow.prev { grid-row: 2; justify-self: end; }

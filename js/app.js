@@ -18,7 +18,6 @@
 
   const app = document.getElementById("app");
   const titleEl = document.getElementById("page-title");
-  const speakBtn = document.getElementById("speak-btn");
 
   // 아이에게 익숙한 것과 비교하기 위한 기준값
   const CAR_SPEED = 100;    // 고속도로 자동차 시속 100km
@@ -61,112 +60,87 @@
     document.title = t === "하늘 친구들" ? "하늘 친구들 ✈️" : `${t} - 하늘 친구들`;
   }
 
-  // ───────── 읽어주기 ─────────
-  // 1순위: 미리 만들어 둔 MeloTTS 음성 파일 (audio/<key>.mp3, 목록은 js/voice.js). 여러 조각을 차례로 이어서 재생.
-  // 2순위: 음성 파일이 없는 문장만 브라우저 내장 음성(Web Speech)으로 읽기.
-  // 문장 내용은 아래 "읽어주기 문장"의 lineText(key)에서 만들어요.
-  const VOICE = window.VOICE || { base: "audio/", clips: {} };
-  const Speech = {
-    web: "speechSynthesis" in window && "SpeechSynthesisUtterance" in window,
-    voice: null,
-    keys: [],      // 🔊 버튼을 누르면 읽을 문장 조각들
-    queue: [],     // 재생을 기다리는 음성 파일 조각
-    current: null,
-    audio: null,
+  // ───────── 효과음 (소리 파일 없이 브라우저에서 바로 만들어요) ─────────
+  // 누르는 것마다 짧은 "딸깍", 폭죽이 터질 때는 박수 소리.
+  // 휴대폰은 화면을 누른 순간에만 소리를 낼 수 있어서, 첫 누름 때 소리 장치를 만들어 깨워 둬요.
+  const Sound = {
+    ctx: null,
+    out: null,
+    played: 0, // 자동 검사용: 소리를 몇 번 냈는지
+    get() {
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        this.ctx = new AC();
+        // 여러 소리가 겹쳐도 찢어지지 않게 마지막에 압축기
+        this.out = this.ctx.createDynamicsCompressor();
+        this.out.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === "suspended") this.ctx.resume();
+      return this.ctx;
+    },
+    // 딸깍: 높은 음이 아주 빠르게 낮아지며 사라지는 짧은 소리 (0.07초)
+    click() {
+      const ac = this.get();
+      if (!ac) return;
+      const t = ac.currentTime;
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(1600, t);
+      o.frequency.exponentialRampToValueAtTime(520, t + 0.05);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      o.connect(g).connect(this.out);
+      o.start(t);
+      o.stop(t + 0.08);
+      this.played++;
+    },
+    // 박수: 여러 사람이 손뼉 치는 소리를 짧은 잡음 덩어리로 흉내 (약 2.5초, 커졌다가 잦아듦)
+    applause(sec = 2.5) {
+      const ac = this.get();
+      if (!ac) return;
+      const sr = ac.sampleRate;
+      const len = Math.floor(sr * sec);
+      const buf = ac.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      for (let person = 0; person < 14; person++) {
+        const perSec = 4 + Math.random() * 2.5;     // 한 사람이 1초에 4~6번 손뼉
+        const amp = 0.2 + Math.random() * 0.3;
+        for (let t = Math.random() * 0.2; t < sec - 0.05; t += (0.8 + Math.random() * 0.4) / perSec) {
+          const start = Math.floor(t * sr);
+          const decay = sr * (0.006 + Math.random() * 0.008);
+          for (let k = 0; k < decay * 4 && start + k < len; k++) d[start + k] += (Math.random() * 2 - 1) * amp * Math.exp(-k / decay);
+        }
+      }
+      for (let k = 0; k < len; k++) {
+        const x = k / len;
+        d[k] *= Math.min(1, x * 10) * Math.min(1, (1 - x) * 2.5) * 0.3;
+      }
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const band = ac.createBiquadFilter();
+      band.type = "bandpass";
+      band.frequency.value = 1700;
+      band.Q.value = 0.6;
+      src.connect(band).connect(this.out);
+      src.start();
+      this.played++;
+    },
     init() {
-      if (!Object.keys(VOICE.clips).length && !this.web) { speakBtn.hidden = true; return; }
-      if (this.web) {
-        const pick = () => {
-          const ko = speechSynthesis.getVoices().filter((v) => /^ko/i.test(v.lang));
-          // 더 자연스러운 목소리(Natural/Online)가 있으면 먼저 고름
-          this.voice = ko.find((v) => /natural|online|neural/i.test(v.name)) || ko[0] || null;
-        };
-        pick();
-        speechSynthesis.addEventListener("voiceschanged", pick);
-      }
-      speakBtn.addEventListener("click", () => {
-        if (speakBtn.classList.contains("speaking")) this.stop();
-        else this.say(this.keys);
-      });
-      // 휴대폰(특히 아이폰)은 화면을 누른 순간에만 소리를 낼 수 있어요. 고르기 우승처럼 조금 뒤에 저절로 나오는
-      // 소리도 나도록, 처음 화면을 누를 때 재생기를 소리 없이 한 번 깨워 둠
-      const unlock = () => {
-        document.removeEventListener("pointerdown", unlock, true);
-        const first = Object.keys(VOICE.clips)[0];
-        if (!first || this.current) return;
-        const a = this.audio || (this.audio = new Audio());
-        const token = (this.unlocking = {});
-        a.muted = true;
-        a.src = `${VOICE.base}${first}.mp3?v=${VOICE.clips[first]}`;
-        // 그사이 진짜 읽어주기가 시작됐으면(token이 바뀜) 건드리지 않음
-        a.play().then(() => { if (this.unlocking === token) a.pause(); }).catch(() => {})
-          .finally(() => { if (this.unlocking === token) { a.muted = false; this.unlocking = null; } });
-      };
-      document.addEventListener("pointerdown", unlock, true);
+      // 버튼·링크·카드·점·체크 상자를 누를 때마다 딸깍
+      document.addEventListener("pointerdown", (e) => {
+        if (e.button > 0) return;
+        if (e.target.closest("button, a, label, input")) this.click();
+      }, true);
+      // 키보드로 누를 때(Enter·Space)도
+      document.addEventListener("keydown", (e) => {
+        if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest("button, a")) this.click();
+      }, true);
     },
-    clean(t) {
-      return t
-        .replace(/\p{Extended_Pictographic}|\uFE0F|\u200D/gu, "")
-        .replace(/[‘’“”"]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    },
-    has: (k) => !!VOICE.clips[k],
-    say(keys) {
-      keys = [].concat(keys || []).filter(Boolean);
-      if (!keys.length) return;
-      this.stop();
-      if (keys.every(this.has)) this.playClips(keys);
-      else this.speakWeb(keys.map(lineText).join(" "));
-    },
-    playClips(keys) {
-      const a = this.audio || (this.audio = new Audio());
-      this.unlocking = null;
-      this.queue = keys.slice();
-      const done = () => { this.current = null; speakBtn.classList.remove("speaking"); };
-      const next = () => {
-        this.current = this.queue.shift();
-        if (!this.current) { done(); return; }
-        a.src = `${VOICE.base}${this.current}.mp3?v=${VOICE.clips[this.current]}`;
-        a.muted = false;
-        a.play().catch(() => { this.queue = []; done(); }); // 자동 재생이 막히면 조용히 멈춤
-      };
-      a.onended = next;
-      a.onerror = () => {
-        // 파일을 못 불러오면 남은 조각은 브라우저 음성으로
-        const rest = [this.current, ...this.queue].filter(Boolean);
-        this.queue = [];
-        done();
-        this.speakWeb(rest.map(lineText).join(" "));
-      };
-      speakBtn.classList.add("speaking");
-      next();
-    },
-    speakWeb(t) {
-      if (!this.web || !t) return;
-      if (!this.voice && speechSynthesis.getVoices().length) {
-        toast("이 컴퓨터에는 한국어 읽어주기 목소리가 없어요 😢");
-        return;
-      }
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(this.clean(t));
-      u.lang = "ko-KR";
-      if (this.voice) u.voice = this.voice;
-      u.rate = 0.95;
-      u.pitch = 1.1;
-      u.onstart = () => speakBtn.classList.add("speaking");
-      u.onend = u.onerror = () => speakBtn.classList.remove("speaking");
-      speechSynthesis.speak(u);
-    },
-    stop() {
-      this.queue = [];
-      this.current = null;
-      if (this.audio) { this.audio.onended = this.audio.onerror = null; this.audio.pause(); }
-      if (this.web) speechSynthesis.cancel();
-      speakBtn.classList.remove("speaking");
-    },
-    set(keys) { this.keys = [].concat(keys || []); },
   };
+  window.SkySound = { played: () => Sound.played }; // 자동 검사용
 
   // ───────── 약속 도장 저장 (브라우저에 보관) ─────────
   const Store = {
@@ -180,16 +154,9 @@
   };
   const hasBadge = (key, done = Store.get()) => (done[key] || []).length >= J[key].promises.length;
 
-  function toast(msg) {
-    const t = document.createElement("div");
-    t.className = "celebrate";
-    t.innerHTML = `<div class="celebrate-box"><p>${msg}</p><button class="big-btn">알겠어요</button></div>`;
-    t.querySelector("button").addEventListener("click", () => t.remove());
-    document.body.appendChild(t);
-    t.querySelector("button").focus();
-  }
-
+  // 폭죽 + 박수 소리 (크기 비교 마지막 A380, 고르기 우승, 배지 받기)
   function confetti(n = 36) {
+    Sound.applause();
     const items = ["🎉", "✨", "⭐", "🎈", "✈️", "💙"];
     for (let k = 0; k < n; k++) {
       const s = document.createElement("span");
@@ -220,11 +187,7 @@
     ).join("");
     app.innerHTML = `
       <section class="home">
-        <div class="hero">
-          <span class="hero-plane" aria-hidden="true">✈️</span>
-          <h2>하늘 친구들</h2>
-          <p>어디로 날아가 볼까요?</p>
-        </div>
+        <div class="hero"><h2>하늘 친구들</h2></div>
         <div class="menu-group">
           <h3 class="menu-group-title">✈️ 비행기랑 놀기</h3>
           <nav class="menu-grid" aria-label="비행기 메뉴">
@@ -247,7 +210,6 @@
             </div>`).join("")}
         </div>
       </section>`;
-    Speech.set("w/home");
   }
 
   // 비행기 두 대가 마주 보는 "VS" 그림 (왼쪽 비행기는 오른쪽을 보도록 뒤집음)
@@ -273,25 +235,21 @@
             </a>`).join("")}
         </div>
       </section>`;
-    Speech.set(`w/gallery-${kind}`);
   }
 
   // ───────── 비행기 자세히 ─────────
   function peopleFact(p, fighter) {
     if (p.cargo) {
-      return { icons: "🧑‍✈️🧑‍✈️📦", big: `조종사 ${p.people}명`, small: "사람 대신 커다란 짐을 실어요",
-        say: `조종사 ${p.people}명이 타고, 사람 대신 커다란 짐을 실어요.` };
+      return { icons: "🧑‍✈️🧑‍✈️📦", big: `조종사 ${p.people}명`, small: "사람 대신 커다란 짐을 실어요" };
     }
     if (fighter || p.people <= 4) {
       const who = fighter ? "조종사" : "";
-      return { icons: (fighter ? "🧑‍✈️" : "🧑").repeat(p.people), big: `${who} ${p.people}명`.trim(), small: "",
-        say: `${who} ${p.people}명이 타요.`.trim() };
+      return { icons: (fighter ? "🧑‍✈️" : "🧑").repeat(p.people), big: `${who} ${p.people}명`.trim(), small: "" };
     }
     const bus = Math.max(1, Math.round(p.people / BUS_SEATS));
     // 정확한 좌석 수 대신 10명 단위 어림수로 (예: 407 → 410명, 189 → 190명). "약"은 붙이지 않음
     const n = Math.round(p.people / 10) * 10;
-    return { icons: "🚌".repeat(Math.min(bus, 10)), big: `${fmt(n)}명`, small: `버스 ${bus}대에 탄 사람만큼`,
-      say: `${n}명이 탈 수 있어요. 버스 ${bus}대에 탄 사람만큼이에요.` };
+    return { icons: "🚌".repeat(Math.min(bus, 10)), big: `${fmt(n)}명`, small: `버스 ${bus}대에 탄 사람만큼` };
   }
 
   function speedFact(p) {
@@ -301,7 +259,6 @@
       big: `자동차보다 ${times}배 빨라요`,
       small: `시속 ${fmt(p.speed)}km`,
       sonic,
-      say: `자동차보다 ${times}배 빨라요.${sonic ? " 소리보다도 빨라요!" : ""}`,
     };
   }
 
@@ -315,11 +272,16 @@
     setTitle(p.name);
 
     app.innerHTML = `
-      <section class="detail">
+      <section class="detail" style="--accent:var(--c-${kind === "fighters" ? "fighter" : "airliner"})">
         <button class="nav-arrow prev" aria-label="앞 비행기">◀</button>
         <article class="detail-card">${detailCardHtml(kind, id)}</article>
         <button class="nav-arrow next" aria-label="다음 비행기">▶</button>
-        <div class="detail-counter">${i + 1} / ${list.length} · <a href="#/${kind}">목록으로</a></div>
+        <div class="detail-counter">
+          <div class="dots" role="group" aria-label="몇 번째 비행기인지">
+            ${list.map((x, k) => `<button class="dot ${k === i ? "on" : ""}" data-id="${x}" aria-label="${P[x].name}" ${k === i ? 'aria-current="true"' : ""}></button>`).join("")}
+          </div>
+          <a class="back-link" href="#/${kind}">처음으로</a>
+        </div>
       </section>`;
 
     // 20대 중 설명이 가장 긴 비행기에 맞춰 카드 높이를 고정 (◀ ▶ 버튼이 흔들리지 않게)
@@ -343,8 +305,8 @@
     };
     app.querySelector(".prev").addEventListener("click", nav.prev);
     app.querySelector(".next").addEventListener("click", nav.next);
-
-    Speech.set(`detail/${id}`);
+    // 점을 누르면 그 비행기로 바로
+    app.querySelectorAll(".detail-counter .dot").forEach((d) => d.addEventListener("click", () => location.replace(`#/${kind}/${d.dataset.id}`)));
   }
 
   // 자세히 보기 카드 안쪽 (사진, 이름, 몇 명·빠르기·나라, 특징)
@@ -385,12 +347,6 @@
             </div>
           </div>
           <p class="detail-feature">⭐ ${p.feature}</p>`;
-  }
-
-  function detailSay(id) {
-    const p = P[id];
-    const people = peopleFact(p, window.FIGHTERS.includes(id));
-    return `${p.name}. ${p.nick}. ${people.say} ${speedFact(p).say} ${countryName(p)}에서 만들었어요. ${p.feature}`;
   }
 
   // ───────── 넘기기 화면 카드 높이 고정 ─────────
@@ -453,13 +409,6 @@
     ...J[key].scenes.map((s, n) => ({ type: "scene", s, n })),
     { type: "promise" }, // 나도 될래요! (학교·시험 같은 어른 이야기 대신 오늘부터 할 수 있는 약속만)
   ];
-  function jobSay(key, i) {
-    const j = J[key];
-    const sl = jobSlides(key)[i];
-    if (sl.type === "intro") return `${j.title}. ${j.easy}. ${j.intro}`;
-    if (sl.type === "scene") return `${sl.s.title}. ${sl.s.text}`;
-    return `${j.title}가 되고 싶다면 이렇게 약속해요. ${j.promises.map((pr) => `${pr.title}. ${pr.text}`).join(" ")}`;
-  }
 
   function viewJob(key, start) {
     const j = J[key];
@@ -523,7 +472,6 @@
           const on = set.has(n);
           btn.classList.toggle("done", on);
           btn.setAttribute("aria-pressed", on);
-          if (on) Speech.say(`promise/${key}/${n}`);
           if (!had && hasBadge(key, all)) celebrate(key);
         });
       });
@@ -537,8 +485,6 @@
       if (slides[i].type === "promise") bindPromises();
       updateNav(i);
       history.replaceState(null, "", `#/job/${key}/${i}`);
-      Speech.stop();
-      Speech.set(`job/${key}/${i}`);
     }
     // 이 직업의 모든 장 중 가장 긴 장에 맞춰 카드 높이 고정 (◀ ▶ 버튼이 흔들리지 않게)
     const lock = () => lockHeight(holder.firstElementChild, `job/${key}`, () => slides.map((sl) => render(sl).html));
@@ -565,7 +511,6 @@
     box.querySelector("button").addEventListener("click", () => box.remove());
     document.body.appendChild(box);
     box.querySelector("button").focus();
-    Speech.say(`badge/${key}`);
   }
 
   // ───────── 누가 누가 클까? (크기 비교) ─────────
@@ -695,7 +640,7 @@
     el.classList.toggle("edge", left < 30); // 무대 왼쪽 끝이면 이름표가 잘리지 않게 오른쪽으로
   }
 
-  // 차례대로 보기 i번째 장의 설명 (화면 글씨와 읽어주기에서 함께 씀)
+  // 차례대로 보기 i번째 장의 설명
   function sizeFacts(i) {
     const order = window.SIZE_ORDER;
     const id = order[i];
@@ -709,10 +654,6 @@
       note = r >= 1.75 ? `앞 비행기보다 ${Math.round(r)}배쯤 길어요!` : r >= 1.2 ? "앞 비행기보다 훨씬 길어요!" : "앞 비행기보다 조금 더 길어요.";
     }
     return { id, p, prev, buses, floors, note };
-  }
-  function sizeSay(i) {
-    const { p, buses, floors, note } = sizeFacts(i);
-    return `${p.name}. 길이는 ${p.length}미터, ${buses}. 높이는 아파트 ${floors}층만큼이에요. ${note}`;
   }
 
   function viewSize(start) {
@@ -731,7 +672,6 @@
             <div class="plane-layer" data-id="${id}"><img src="${imgSrc(id)}" alt=""></div>
             <div class="plane-layer outline" data-id="${id}"><img src="${imgSrc(id)}" alt=""></div>`).join("")}
           ${kidsHtml()}
-          <div id="finale"></div>
         </div>
         <p class="rotate-hint">📱 휴대폰을 옆으로 돌리면 더 크게 보여요</p>
         <div class="size-info">
@@ -775,23 +715,15 @@
       });
       placeKid();
 
-      const { p } = sizeFacts(i);
       text.innerHTML = sizeTextHtml(i);
       const again = app.querySelector("#again");
       if (again) again.addEventListener("click", () => update(0));
 
-      const finale = app.querySelector("#finale");
-      if (i === last) {
-        finale.innerHTML = `<div class="finale-msg">🎉 짜잔! 제일 큰 비행기 ${flag("kr")} ${p.airline} A380!</div>`;
-        confetti(28);
-      } else {
-        finale.innerHTML = "";
-      }
+      // 마지막 A380: 글자 없이 폭죽 + 박수 소리만
+      if (i === last) confetti(28);
 
       updateNav(i);
       history.replaceState(null, "", `#/size/${i}`);
-      Speech.stop();
-      Speech.set(`size/${i}`);
     }
 
     app.querySelector("#show-all").addEventListener("change", (e) => { showAll = e.target.checked; update(i); });
@@ -903,25 +835,17 @@
       kidsBeside(kids, minLeft);
     }
 
-    // 화면에 보일 설명(text)과 읽어주기 조각(keys). 읽어주기는 미리 만든 음성 조각을 이어 붙여서 말해요.
-    function compareParts(ia, ib) {
+    // 두 비행기를 비교하는 한 줄 설명
+    function compareText(ia, ib) {
       const [a, b] = [P[ia], P[ib]];
-      const [il, is] = a.length >= b.length ? [ia, ib] : [ib, ia];
-      const [long, short] = [P[il], P[is]];
+      const [long, short] = a.length >= b.length ? [a, b] : [b, a];
       const r = long.length / short.length;
-      const times = Math.min(VS_MAX_TIMES, Math.round(r));
       const lenText = r < 1.05 ? "두 비행기 길이가 거의 똑같아요!"
-        : `더 길쭉한 비행기는 ${long.name}! ${short.name}보다 ${r >= 1.75 ? `${Math.round(r)}배쯤 더 길쭉해요` : r >= 1.2 ? "훨씬 더 길어요" : "조금 더 길어요"}.`;
-      const lenKeys = r < 1.05 ? ["w/vs-same"]
-        : ["w/vs-longer", `name/${il}`, r >= 1.75 ? `w/vs-times-${times}` : r >= 1.2 ? "w/vs-much" : "w/vs-bit"];
-      const it = a.height >= b.height ? ia : ib;
-      const tall = P[it];
-      const low = P[it === ia ? ib : ia];
-      const sameH = tall.height / low.height < 1.05;
-      const tallToo = !sameH && it === il && r >= 1.05;
-      const hText = sameH ? "높이는 거의 같아요." : tallToo ? "높이도 더 높아요." : `더 높은 비행기는 ${tall.name}!`;
-      const hKeys = sameH ? ["w/vs-height-same"] : tallToo ? ["w/vs-taller-too"] : ["w/vs-taller", `name/${it}`];
-      return { text: `${lenText} ${hText}`, keys: [...lenKeys, ...hKeys] };
+        : `더 긴 비행기는 ${long.name}! ${short.name}보다 ${r >= 1.75 ? `${Math.round(r)}배쯤` : r >= 1.2 ? "훨씬" : "조금"} 길어요.`;
+      const [tall, low] = a.height >= b.height ? [a, b] : [b, a];
+      const hText = tall.height / low.height < 1.05 ? "키는 거의 같아요."
+        : tall === long && r >= 1.05 ? "키도 더 커요." : `키가 더 큰 비행기는 ${tall.name}!`;
+      return `${lenText} ${hText}`;
     }
 
     function render() {
@@ -957,14 +881,12 @@
       msg.classList.toggle("top", !!(a || b)); // 비행기가 있으면 가리지 않게 위쪽으로
       app.querySelector("#vs-facts").innerHTML = sel.map((id, n) => id
         ? `<span class="chip" style="--slot:${VS_SLOTS[n].color}">${VS_SLOTS[n].mark} 📏 ${P[id].length}m · 🏢 높이 ${P[id].height}m</span>` : "").join("");
-      const cmp = a && b ? compareParts(sel[0], sel[1]) : null;
-      const note = cmp ? cmp.text : "";
+      const note = a && b ? compareText(sel[0], sel[1]) : "";
       app.querySelector("#vs-note").textContent = note;
       app.querySelector("#vs-reset").hidden = !a && !b;
       layout();
 
       history.replaceState(null, "", `#/size/vs${sel[0] || sel[1] ? `/${sel[0] || "-"}` : ""}${sel[1] ? `/${sel[1]}` : ""}`);
-      Speech.set(cmp ? [`name/${sel[0]}`, "w/and", `name/${sel[1]}`, ...cmp.keys] : "w/vs-idle");
     }
 
     app.querySelectorAll(".pick-plane").forEach((btn) => btn.addEventListener("click", () => {
@@ -1051,8 +973,6 @@
           </div>
         </section>`;
       app.querySelector("#cup-start").addEventListener("click", start);
-      Speech.stop();
-      Speech.set("w/cup-start");
     }
 
     function start() {
@@ -1101,8 +1021,6 @@
       // 다음 대결 사진 미리 불러오기
       st.entrants.slice(st.m * 2 + 2, st.m * 2 + 4).forEach((id) => { new Image().src = imgSrc(id); });
       nav = { prev: () => pick(0), next: () => pick(1), noSwipe: true }; // ← → 키로도 고르기
-      Speech.stop();
-      Speech.set([`w/cup-${stage}`, `name/${a}`, "w/and", `name/${b}`, "w/cup-q"]);
     }
 
     function pick(side) {
@@ -1164,77 +1082,13 @@
         </section>`;
       app.querySelector("#cup-again").addEventListener("click", startScreen);
       confetti(40);
-      Speech.set(["w/cup-final", `name/${champ}`, "w/cup-final-end"]);
-      Speech.say(["w/cup-champ", `name/${champ}`]);
     }
 
     startScreen();
   }
 
-  // ───────── 읽어주기 문장 ─────────
-  // 화면에서 읽어주는 모든 문장은 key로 불러요. tools/melo_voice.py가 window.SkyVoice.script()로 전체 목록을 받아서
-  // MeloTTS 음성 파일(audio/<key>.mp3)과 목록(js/voice.js)을 미리 만들어요. 문장을 고친 뒤 그 도구를 다시 돌리면
-  // 바뀐 문장만 새로 만들어요. 비교하기·고르기처럼 조합이 많은 문장은 짧은 조각(w/…, name/…)을 이어서 말해요.
-  const VS_MAX_TIMES = 12;
-  const WORDS = {
-    home: "하늘 친구들에 온 걸 환영해요! 보고 싶은 것을 눌러 보세요. 하늘을 지키는 비행기, 사람을 태우는 비행기, 누가 누가 큰지 비교하기, 최고의 비행기 고르기, 그리고 조종사와 관제사와 정비사가 하는 일을 볼 수 있어요.",
-    "gallery-fighters": "우리 하늘을 든든하게 지키는 비행기들이에요. 이런 비행기를 전투기라고 불러요. 궁금한 비행기를 눌러 보세요.",
-    "gallery-airliners": "손님을 태우고 먼 곳까지 데려다주는 비행기들이에요. 이런 비행기를 여객기라고 불러요. 궁금한 비행기를 눌러 보세요.",
-    and: "그리고",
-    "vs-idle": "비교하고 싶은 비행기 두 대를 골라 보세요. 고른 두 비행기를 같은 크기 비율로 겹쳐서 보여줘요.",
-    "vs-same": "두 비행기 길이가 거의 똑같아요!",
-    "vs-longer": "더 길쭉한 비행기는", // "더 긴"은 "더 핀"처럼 들릴 때가 있어서
-    "vs-much": "훨씬 더 길어요.",
-    "vs-bit": "조금 더 길어요.",
-    // "키"는 MeloTTS가 "피"처럼 읽을 때가 있어서 비교하기에서는 "높이"로 말해요
-    "vs-taller": "더 높은 비행기는",
-    "vs-taller-too": "높이도 더 높아요.",
-    "vs-height-same": "높이는 거의 같아요.",
-    "cup-start": "최고의 비행기 고르기! 두 비행기 중에서 더 멋진 비행기를 골라요. 끝까지 남은 비행기가 최고의 비행기예요. 시작하기를 눌러 보세요.",
-    "cup-q": "어떤 비행기가 더 멋있어요?",
-    "cup-final": "짜잔! 내가 고른 최고의 비행기는",
-    "cup-final-end": "정말 멋진 비행기예요!",
-    "cup-champ": "짜잔! 최고의 비행기는",
-  };
-  for (let n = 2; n <= VS_MAX_TIMES; n++) WORDS[`vs-times-${n}`] = `${n}배쯤 더 길쭉해요.`;
-  // 고르기 대결 머리말 (32강·16강 대신)
-  Object.assign(WORDS, { "cup-first": "첫 대결!", "cup-next": "다음 대결!", "cup-last": "결승 대결이에요!" });
-
-  function lineText(key) {
-    const [kind, a, b] = String(key).split("/");
-    if (kind === "w") return WORDS[a] || "";
-    if (kind === "name") return P[a] ? P[a].name : "";
-    if (kind === "detail") return detailSay(a);
-    if (kind === "job") return jobSay(a, +b);
-    if (kind === "promise") return `${J[a].promises[+b].title}! 약속!`;
-    if (kind === "badge") return `축하해요! ${J[a].badge.name}를 받았어요!`;
-    if (kind === "size") return sizeSay(+a);
-    return "";
-  }
-
-  function allLineKeys() {
-    return [
-      ...Object.keys(WORDS).map((w) => `w/${w}`),
-      ...Object.keys(P).map((id) => `name/${id}`),
-      ...[...window.FIGHTERS, ...window.AIRLINERS].map((id) => `detail/${id}`),
-      ...JOB_KEYS.flatMap((k) => jobSlides(k).map((_, i) => `job/${k}/${i}`)),
-      ...JOB_KEYS.flatMap((k) => J[k].promises.map((_, n) => `promise/${k}/${n}`)),
-      ...JOB_KEYS.map((k) => `badge/${k}`),
-      ...window.SIZE_ORDER.map((_, i) => `size/${i}`),
-    ];
-  }
-
-  // 음성 파일 만드는 도구와 자동 검사에서 씀
-  window.SkyVoice = {
-    script: () => allLineKeys().map((key) => ({ key, text: Speech.clean(lineText(key)) })),
-    current: () => Speech.keys.slice(),
-    state: () => ({ clip: Speech.current, queue: Speech.queue.slice(), src: Speech.audio ? Speech.audio.src : "",
-      speaking: speakBtn.classList.contains("speaking") }),
-  };
-
   // ───────── 화면 이동 ─────────
   function route() {
-    Speech.stop();
     nav = null;
     if (cleanup) { cleanup(); cleanup = null; }
     document.querySelectorAll(".celebrate").forEach((el) => el.remove());
@@ -1260,17 +1114,17 @@
     if (!nav || nav.noSwipe) return; // 고르기 화면에서는 밀기로 잘못 고르지 않게 막음
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx < 0 ? nav.next : nav.prev)();
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { Sound.click(); (dx < 0 ? nav.next : nav.prev)(); }
   }, { passive: true });
 
   // 키보드 ← → 로도 넘기기
   document.addEventListener("keydown", (e) => {
     if (!nav || e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "ArrowRight") { e.preventDefault(); nav.next(); }
-    if (e.key === "ArrowLeft") { e.preventDefault(); nav.prev(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); Sound.click(); nav.next(); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); Sound.click(); nav.prev(); }
   });
 
-  Speech.init();
+  Sound.init();
   window.addEventListener("hashchange", route);
   route();
 })();
