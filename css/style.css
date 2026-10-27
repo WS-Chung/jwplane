@@ -16,13 +16,20 @@
   --card: #ffffff;
   --radius: 26px;
   --shadow: 0 8px 24px rgba(30, 70, 120, 0.18);
-  --c-fighter: #3b6fb6;
-  --c-airliner: #18a999;
-  --c-pilot: #2f80ed;
-  --c-controller: #9b51e0;
-  --c-mechanic: #f2994a;
-  --c-size: #27ae60;
-  --c-cup: #f2a900;
+  /* 메뉴별 테마 색: 처음 화면 카드 순서대로 빨·주·노·초·파·남·보 (카드 아래 띠, 그 메뉴 안의 버튼·점·글씨)
+     -ink  = 그 색 위에 쓰는 글씨 (노랑·하늘색은 밝아서 진한 글씨), 없으면 흰 글씨
+     -text = 흰 바탕 위에 그 색으로 쓰는 글씨 (밝은 색은 조금 진하게), 없으면 같은 색 */
+  --c-fighter: #e53935;     /* 빨 */
+  --c-airliner: #fb8c00;    /* 주 */
+  --c-size: #fdd835;        /* 노 */
+  --c-size-ink: #23324a;
+  --c-size-text: #a17c00;
+  --c-cup: #43a047;         /* 초 */
+  --c-pilot: #64b5f6;       /* 파: 하늘색에 가까운 옅은 파랑 */
+  --c-pilot-ink: #23324a;
+  --c-pilot-text: #1e78c8;
+  --c-controller: #283593;  /* 남 */
+  --c-mechanic: #8e24aa;    /* 보 */
   --topbar-h: 72px;
 }
 
@@ -217,12 +224,18 @@ main:has(> .gallery) { padding-bottom: 12px; }
   border-radius: clamp(8px, 1.2vmin, 16px); background: linear-gradient(180deg, #d4eeff, #f4fbff);
 }
 .plane-card .thumb-box .crop { width: min(94%, calc(88cqh * var(--r))); }
-/* 이름은 두 줄 자리를 잡아 둬서 한 줄짜리 카드도 그림 높이가 같음 */
+/* 모든 카드: 첫 줄은 국기, 그 아래 줄부터 이름 (이름은 두 줄 자리를 잡아 둬서 한 줄짜리 카드도 그림 높이·국기 자리가 같음) */
 .plane-card .name {
-  flex: none; display: flex; align-items: center; justify-content: center;
-  min-height: 2.3em; margin-top: 0.3em; line-height: 1.15;
-  font-size: clamp(9px, min(15cqw, 7cqh), 24px);
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0.2em;
+  min-height: 3.5em; margin-top: 0.3em; line-height: 1.15;
+  font-size: clamp(9px, min(14cqw, 6.5cqh), 24px);
 }
+.plane-card .name .flags { flex: none; height: 1em; flex-wrap: nowrap; align-items: center; }
+.plane-card .name .flags .flag { flex: none; }
+/* 국기가 3~4개면 카드 폭에 맞춰 작게 해서 늘 한 줄에 */
+.plane-card .name .flags[data-n="3"] .flag { height: min(1em, 17cqw); }
+.plane-card .name .flags[data-n="4"] .flag { height: min(1em, 13cqw); }
+.plane-card .name .nm { display: block; max-width: 100%; }
 .plane-card .name .w { white-space: nowrap; }
 @media (max-width: 520px) {
   /* 아주 좁은 칸에서는 낱말 중간에서도 줄 바꿈 */
@@ -233,9 +246,10 @@ main:has(> .gallery) { padding-bottom: 12px; }
    이름 글자는 칸에 들어가지 않아 국기만 보여 줌 (이름은 카드의 aria-label로 읽힘) */
 @media (max-width: 520px) and (orientation: portrait) {
   .plane-card .thumb-box .crop { flex: none; margin: 0; width: min(94cqh, calc(90cqw * var(--r))); transform: rotate(90deg); }
-  .plane-card .name { min-height: 0; font-size: 14px; }
-  .plane-card .name .w { display: none; }
-  .plane-card .name .flags .flag { height: 10px; } /* 국기 여러 개면 두 개씩 두 줄로 */
+  .plane-card .name { min-height: 0; font-size: 14px; gap: 0; }
+  .plane-card .name .nm { display: none; }
+  .plane-card .name .flags { height: auto; flex-wrap: wrap; }
+  .plane-card .name .flags .flag, .plane-card .name .flags[data-n] .flag { height: 10px; } /* 국기 여러 개면 두 개씩 두 줄로 */
 }
 .flag { height: 1em; width: auto; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.12); vertical-align: -0.1em; }
 /* 여러 나라 국기 묶음 (최대 4개) */
@@ -309,7 +323,7 @@ main:has(> .gallery) { padding-bottom: 12px; }
   border-top: 12px solid var(--accent, #2f80ed);
   animation: pop 0.35s ease-out;
 }
-.slide-kicker { font-size: 22px; color: var(--accent, #2f80ed); }
+.slide-kicker { font-size: 22px; color: var(--accent-text, var(--accent, #2f80ed)); }
 .slide-emoji {
   width: clamp(140px, 22vw, 200px); height: clamp(140px, 22vw, 200px); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -377,7 +391,7 @@ main:has(> .gallery) { padding-bottom: 12px; }
 .celebrate-box p { margin: 8px 0 18px; font-size: 22px; color: var(--ink-soft); }
 .big-btn {
   display: inline-block; padding: 14px 30px; border: none; border-radius: 999px; cursor: pointer;
-  background: var(--accent, #2f80ed); color: #fff; font-size: 24px; text-decoration: none; box-shadow: var(--shadow);
+  background: var(--accent, #2f80ed); color: var(--accent-ink, #fff); font-size: 24px; text-decoration: none; box-shadow: var(--shadow);
 }
 
 .confetti { position: fixed; top: -40px; z-index: 60; font-size: 30px; pointer-events: none; animation: fall linear forwards; }
@@ -454,8 +468,8 @@ main:has(> .gallery) { padding-bottom: 12px; }
 .size-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .size-modes { display: inline-flex; gap: 4px; padding: 5px; border-radius: 999px; background: #fff; box-shadow: var(--shadow); }
 .mode-btn { padding: 7px 16px; border-radius: 999px; font-size: 20px; text-decoration: none; color: var(--ink); white-space: nowrap; }
-.mode-btn:hover { background: #eef7ee; }
-.mode-btn[aria-current="page"] { background: var(--c-size); color: #fff; }
+.mode-btn:hover { background: #fff8d2; }
+.mode-btn[aria-current="page"] { background: var(--accent, var(--c-size)); color: var(--accent-ink, #fff); }
 
 /* ── 골라서 비교하기 ──────────────────────── */
 /* 두 비행기 모두 투명도 75%(불투명도 0.25)로 겹쳐 보이고, 1번 주황·2번 파랑 테두리로 구별 */
@@ -514,7 +528,7 @@ main:has(> .gallery) { padding-bottom: 12px; }
 .cup-size {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   min-width: min(100%, 280px); padding: 16px 36px; border: none; border-radius: 26px; cursor: pointer;
-  background: var(--accent); color: #fff; font-size: 34px; box-shadow: var(--shadow);
+  background: var(--accent); color: var(--accent-ink, #fff); font-size: 34px; box-shadow: var(--shadow);
   transition: transform 0.15s;
 }
 .cup-size:hover { transform: translateY(-3px); }
@@ -533,7 +547,7 @@ main:has(> .gallery) { padding-bottom: 12px; }
 .cup { max-width: 1240px; margin: 0 auto; text-align: center; }
 .cup-head { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .cup-round {
-  padding: 6px 22px; border-radius: 999px; background: var(--accent); color: #fff;
+  padding: 6px 22px; border-radius: 999px; background: var(--accent); color: var(--accent-ink, #fff);
   font-size: clamp(22px, 3vw, 30px); box-shadow: var(--shadow);
 }
 .cup-round.new { animation: round-pop 0.6s ease-out; }

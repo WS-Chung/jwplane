@@ -4,10 +4,11 @@
   - scenes   : 이럴 때 이런 일을 해요 (상황 카드)
   - promises : 나도 될래요! 지금부터 할 수 있는 생활 약속 (누르면 도장 쾅!)
                학교·시험·자격증 같은 어른 이야기는 넣지 않고, 만 6세가 오늘부터 할 수 있는 것만
+  - 직업마다 테마 색은 css/style.css의 --c-pilot · --c-controller · --c-mechanic
 */
 window.JOBS = {
   pilot: {
-    title: "조종사", easy: "비행기를 운전해요", emoji: "🧑‍✈️", color: "#2f80ed",
+    title: "조종사", easy: "비행기를 운전해요", emoji: "🧑‍✈️",
     photo: "images/jobs/pilot.jpg", photoCaption: "조종실에 앉은 기장님과 부기장님",
     intro: "비행기를 운전해서 하늘을 날아요. 큰 비행기에는 조종사가 두 명 타요. 기장님과 부기장님!",
     scenes: [
@@ -28,7 +29,7 @@ window.JOBS = {
   },
 
   controller: {
-    title: "관제사", easy: "하늘 길 안내원", emoji: "🎧", color: "#9b51e0",
+    title: "관제사", easy: "하늘 길 안내원", emoji: "🎧",
     photo: "images/jobs/controller.jpg", photoCaption: "인천공항의 높은 관제탑 (가운데 높은 탑)",
     intro: "높은 관제탑에서 비행기들에게 “지금 출발하세요, 이쪽 길로 가세요” 하고 알려줘요. 하늘의 교통경찰 같아요!",
     scenes: [
@@ -48,7 +49,7 @@ window.JOBS = {
   },
 
   mechanic: {
-    title: "정비사", easy: "비행기 의사 선생님", emoji: "🧑‍🔧", color: "#f2994a",
+    title: "정비사", easy: "비행기 의사 선생님", emoji: "🧑‍🔧",
     photo: "images/jobs/mechanic.jpg", photoCaption: "커다란 엔진을 살펴보는 정비사님들",
     intro: "비행기가 아프지 않게 살펴보고 고쳐 주는 비행기 의사 선생님이에요. 정비사가 “안전해요!” 해야 비행기가 날 수 있어요.",
     scenes: [

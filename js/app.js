@@ -44,7 +44,10 @@
   const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
   const flag = (code) => `<img class="flag" src="${C[code].flag}" alt="${C[code].name} 국기">`;
   // 여러 나라가 힘을 모아 만든 비행기는 그 나라 국기를 모두(최대 4개) 나란히
-  const flags = (p) => `<span class="flags">${p.country.slice(0, 4).map(flag).join("")}</span>`;
+  const flags = (p) => `<span class="flags" data-n="${Math.min(4, p.country.length)}">${p.country.slice(0, 4).map(flag).join("")}</span>`;
+  // 메뉴별 테마 색 (처음 화면 순서대로 빨·주·노·초·파·남·보, 색은 css의 --c-…)
+  // 노랑·하늘색처럼 밝은 색은 그 위에 쓰는 글씨를 진하게(--c-…-ink), 흰 바탕 위 글씨는 조금 진한 색(--c-…-text)으로
+  const theme = (name) => `--accent:var(--c-${name});--accent-ink:var(--c-${name}-ink, #fff);--accent-text:var(--c-${name}-text, var(--c-${name}))`;
   const countryName = (p) => p.countryText || p.country.map((c) => C[c].name).join("·");
   const listOf = (kind) => (kind === "fighters" ? window.FIGHTERS : window.AIRLINERS);
   // 목록 카드 이름: 낱말 중간(E195-E2)에서 줄이 바뀌지 않게 낱말마다 묶고,
@@ -375,8 +378,8 @@
   }
 
   // ───────── 처음 화면 ─────────
-  function menuCard(href, accent, art, title, sub, artClass = "") {
-    return `<a class="menu-card" href="${href}" style="--accent:${accent}">
+  function menuCard(href, themeName, art, title, sub, artClass = "") {
+    return `<a class="menu-card" href="${href}" style="${theme(themeName)}">
       <span class="menu-art ${artClass}" aria-hidden="true">${art}</span>
       <span class="menu-title">${title}</span>
       <span class="menu-sub">${sub}</span>
@@ -387,7 +390,7 @@
     setTitle("하늘 친구들");
     const done = Store.get();
     const jobCards = JOB_KEYS.map((k) =>
-      menuCard(`#/job/${k}`, J[k].color, `<span class="emoji">${J[k].emoji}</span>`, J[k].easy, `${J[k].title}가 하는 일`)
+      menuCard(`#/job/${k}`, k, `<span class="emoji">${J[k].emoji}</span>`, J[k].easy, `${J[k].title}가 하는 일`)
     ).join("");
     app.innerHTML = `
       <section class="home">
@@ -395,10 +398,10 @@
         <div class="menu-group">
           <h3 class="menu-group-title">✈️ 비행기랑 놀기</h3>
           <nav class="menu-grid" aria-label="비행기 메뉴">
-            ${menuCard("#/fighters", "var(--c-fighter)", planeImg("t50b", { thumb: true }), "하늘을 지키는 비행기", "전투기 구경")}
-            ${menuCard("#/airliners", "var(--c-airliner)", planeImg("a380", { thumb: true }), "사람을 태우는 비행기", "여객기 구경")}
-            ${menuCard("#/size", "var(--c-size)", planeImg("c172", { thumb: true, width: "16%" }) + planeImg("a380", { thumb: true, width: "72%" }), "누가 누가 클까?", "비행기 크기 비교", "size-art")}
-            ${menuCard("#/cup", "var(--c-cup)", vsArt("f16", "a380", true), "최고의 비행기 고르기", "누가 더 멋있나?", "vs-art")}
+            ${menuCard("#/fighters", "fighter", planeImg("t50b", { thumb: true }), "하늘을 지키는 비행기", "전투기 구경")}
+            ${menuCard("#/airliners", "airliner", planeImg("a380", { thumb: true }), "사람을 태우는 비행기", "여객기 구경")}
+            ${menuCard("#/size", "size", planeImg("c172", { thumb: true, width: "16%" }) + planeImg("a380", { thumb: true, width: "72%" }), "누가 누가 클까?", "비행기 크기 비교", "size-art")}
+            ${menuCard("#/cup", "cup", vsArt("f16", "a380", true), "최고의 비행기 고르기", "누가 더 멋있나?", "vs-art")}
           </nav>
         </div>
         <div class="menu-group">
@@ -436,7 +439,7 @@
           ${listOf(kind).map((id) => `
             <a class="plane-card" href="#/${kind}/${id}" aria-label="${P[id].name}">
               <span class="thumb-box">${planeImg(id, { thumb: true })}</span>
-              <span class="name"><span>${flags(P[id])} ${cardName(P[id].name)}</span></span>
+              <span class="name">${flags(P[id])}<span class="nm">${cardName(P[id].name)}</span></span>
             </a>`).join("")}
         </div>
       </section>`;
@@ -477,7 +480,7 @@
     setTitle(p.name);
 
     app.innerHTML = `
-      <section class="detail" style="--accent:var(--c-${kind === "fighters" ? "fighter" : "airliner"})">
+      <section class="detail" style="${theme(kind === "fighters" ? "fighter" : "airliner")}">
         <button class="nav-arrow prev" aria-label="앞 비행기">◀</button>
         <article class="detail-card">${detailCardHtml(kind, id)}</article>
         <button class="nav-arrow next" aria-label="다음 비행기">▶</button>
@@ -635,7 +638,7 @@
     const slides = jobSlides(key);
     let i = clamp(start, 0, slides.length - 1);
     setTitle(`${j.title} · ${j.easy}`);
-    app.innerHTML = `<section class="slides" style="--accent:${j.color}"><div id="slide"></div>${slideNav(slides.length)}</section>`;
+    app.innerHTML = `<section class="slides" style="${theme(key)}"><div id="slide"></div>${slideNav(slides.length)}</section>`;
     const holder = app.querySelector("#slide");
     const updateNav = bindSlideNav(app, slides.length, (n) => show(n), () => i);
 
@@ -721,7 +724,7 @@
     confetti();
     const box = document.createElement("div");
     box.className = "celebrate";
-    box.style.setProperty("--accent", j.color);
+    box.setAttribute("style", theme(key));
     box.innerHTML = `<div class="celebrate-box" role="dialog" aria-label="배지 받기">
       <div class="medal-big" aria-hidden="true">${j.badge.emoji}</div>
       <h2>${j.badge.name}를 받았어요!</h2>
@@ -904,7 +907,7 @@
     setTitle("누가 누가 클까?");
 
     app.innerHTML = `
-      <section class="size" style="--accent:var(--c-size)">
+      <section class="size" style="${theme("size")}">
         ${sizeTop("order", `<label class="toggle"><input type="checkbox" id="show-all"> 앞 비행기 모두 보기</label>`)}
         <div class="stage" id="stage" role="img" aria-label="비행기를 실제 크기 비율로 겹쳐 그린 그림">
           <div class="ground"></div>
@@ -1078,7 +1081,7 @@
     ];
 
     app.innerHTML = `
-      <section class="size compare" style="--accent:var(--c-size)">
+      <section class="size compare" style="${theme("size")}">
         ${sizeTop("vs")}
         <div class="stage" id="stage" role="img" aria-label="고른 비행기 두 대를 실제 크기 비율로 겹쳐 그린 그림">
           <div class="ground"></div>
@@ -1255,7 +1258,7 @@
     function startScreen() {
       nav = null;
       app.innerHTML = `
-        <section class="slides cup-start" style="--accent:var(--c-cup)">
+        <section class="slides cup-start" style="${theme("cup")}">
           <div class="slide-card">
             <div class="slide-kicker">최고의 비행기 고르기</div>
             <div class="vs-art big" aria-hidden="true">${vsArt("kf21", "b747")}</div>
@@ -1293,7 +1296,7 @@
       // 아이에게 "32강·16강"은 어려워서 첫 대결 → 다음 대결 → … → 결승 으로만 알려줘요
       const stage = size === 2 ? "last" : st.played === 0 ? "first" : "next";
       app.innerHTML = `
-        <section class="cup" style="--accent:var(--c-cup)">
+        <section class="cup" style="${theme("cup")}">
           <div class="cup-head">
             <span class="cup-round new ${stage}">${CUP_STAGE[stage]}</span>
           </div>
@@ -1356,7 +1359,7 @@
       const p = P[champ];
       const runner = st.finalPair ? P[st.finalPair.loser] : null;
       app.innerHTML = `
-        <section class="slides cup-final" style="--accent:var(--c-cup)">
+        <section class="slides cup-final" style="${theme("cup")}">
           <div class="slide-card">
             <div class="trophy" aria-hidden="true">🏆</div>
             <div class="slide-kicker">내가 고른 최고의 비행기</div>
