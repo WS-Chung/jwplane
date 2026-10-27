@@ -382,9 +382,24 @@
   // 보이지 않는 곳에 한 번씩 그려 보고, 가장 긴 장의 높이를 카드의 최소 높이로 정해요.
   // (화면 폭·높이·글꼴 준비 상태마다 한 번만 재고 기억해 둠)
   const heightCache = new Map();
+  // 창 크기는 그대로인데 칸 폭만 바뀌는 경우(스크롤바가 나중에 생기는 등)에도 다시 재도록 지켜봄
+  const lockedEls = new Map(); // 요소 → { key, variants, w }
+  const lockWatch = window.ResizeObserver ? new ResizeObserver((entries) => {
+    for (const { target: el } of entries) {
+      const info = lockedEls.get(el);
+      if (!info) continue;
+      if (!el.isConnected) { lockWatch.unobserve(el); lockedEls.delete(el); continue; }
+      if (el.offsetWidth !== info.w) lockHeight(el, info.key, info.variants);
+    }
+  }) : null;
   function lockHeight(el, key, variants) {
+    for (const old of lockedEls.keys()) {
+      if (!old.isConnected) { lockWatch?.unobserve(old); lockedEls.delete(old); }
+    }
     if (!el || !el.isConnected) return;
     const w = el.offsetWidth; // 커지는 애니메이션(transform) 영향을 받지 않는 실제 폭
+    lockedEls.set(el, { key, variants, w });
+    lockWatch?.observe(el);
     const ck = `${key}|${w}|${innerHeight}|${document.fonts ? document.fonts.status : ""}`;
     if (!heightCache.has(ck)) {
       const probe = el.cloneNode(false);
@@ -547,7 +562,7 @@
     atr72: "이제부터는 사람을 태우는 비행기예요!",
     concorde: "길쭉하고 날씬하죠? 그래서 키는 작아요.",
     b747: "엄청 크죠? 그런데 아직 하나 더 남았어요!",
-    a380: "짜잔! 사람을 태우는 비행기 중에서 세상에서 제일 커요. 747과 길이는 비슷하지만 키가 훨씬 크고, 2층이에요!",
+    a380: "짜잔! 세상에서 제일 큰 비행기예요! 747과 길이는 비슷하지만 키가 훨씬 크고, 2층이에요!",
   };
 
   // 아이 그림 (가로 40 × 세로 100 칸). 정우: 짧은 머리·파란 티셔츠, 정연: 양갈래 머리·분홍 원피스
@@ -632,11 +647,14 @@
     const h = (w * ch) / cw;
     const left = W / 2 - ((b.x + b.w / 2) / cw) * w;
     const top = groundY - ((b.y + b.h) / ch) * h;
+    // 기울이고 키우는 기준점 = 기체 바닥 가운데 (바퀴가 땅에 닿는 자리)
+    const origin = `${((b.x + b.w / 2) / cw) * 100}% ${((b.y + b.h) / ch) * 100}%`;
     els.forEach((el) => {
       el.style.left = left + "px";
       el.style.top = top + "px";
       el.style.width = w + "px";
       el.style.height = h + "px";
+      el.style.transformOrigin = origin;
     });
     return { left: left + (b.x / cw) * w, width: planeW };
   }
@@ -731,7 +749,60 @@
       if (p) kidsBeside(kids, p.left);
     }
 
+    // ── 착륙 애니메이션 ──
+    // 새 비행기가 오른쪽 위에서 30도 비탈로 내려와 활주로 가운데보다 조금 오른쪽에 바퀴를 대고,
+    // 앞바퀴를 내린 뒤 가운데까지 달려와 멈춤. 그동안 작고 흐릿한 그림 → 크고 진한 그림으로 바뀜.
+    // 움직임은 기체 바닥 가운데(바퀴 자리)를 기준으로 계산함 (placePlane이 transform-origin을 그 자리로 맞춤)
+    const LAND_MS = 3000;
+    const TOUCH = 0.47;              // 바퀴가 땅에 닿는 때 (전체 시간 중 비율)
+    const reduceMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    let landing = [];                // 지금 움직이는 애니메이션
+    let landingToken = 0;
+    function stopLanding(finish) {
+      landing.forEach((a) => (finish ? a.finish() : a.cancel()));
+      landing = [];
+    }
+    function land(el, id, onDone) {
+      const token = ++landingToken;
+      stopLanding(false);
+      if (reduceMotion || !el || !el.animate) { onDone?.(); return; }
+      const W = stage.clientWidth;
+      const planeW = pos[id].width;  // 다 왔을 때 기체 길이(px)
+      const s0 = 0.28, sT = 0.72;    // 처음 크기, 땅에 닿을 때 크기 (마지막은 1)
+      // 땅에 닿는 자리: 가운데보다 조금 오른쪽 (큰 비행기도 꼬리가 무대 밖으로 덜 나가게)
+      const dxT = clamp(Math.min(W * 0.14, W / 2 - 6 - (sT * planeW) / 2), W * 0.05, W * 0.14);
+      const dxS = W * 0.56;          // 출발: 무대 오른쪽 끝 조금 바깥
+      const a0 = (dxS - dxT) * Math.tan(Math.PI / 6); // 30도 비탈의 출발 높이
+      // f = 남은 높이 비율(1 → 0). 30도 직선 위를 내려오면서 기체 기울기도 -30도 → 0도로 차츰 펴짐
+      const air = (f, opacity) => ({
+        transform: `translate(${dxT + (dxS - dxT) * f}px, ${-a0 * f}px) rotate(${-30 * f}deg) scale(${sT + (s0 - sT) * f})`,
+        opacity,
+      });
+      const ground = (x, deg, s, opacity) => ({ transform: `translate(${x}px, 0px) rotate(${deg}deg) scale(${s})`, opacity });
+      const roll = Math.min(dxT * 0.35, (dxS - dxT) * 0.12); // 앞바퀴를 내리는 동안 굴러가는 거리
+      const move = el.animate([
+        { offset: 0, ...air(1, 0.12) },
+        { offset: 0.40, ...air(0.12, 0.75) },
+        { offset: TOUCH, ...ground(dxT, 2, sT, 0.85) },              // 뒷바퀴부터 쿵 (코는 살짝 들고)
+        { offset: 0.55, ...ground(dxT - roll, 0, sT + 0.03, 0.92), easing: "cubic-bezier(.2,.6,.35,1)" }, // 앞바퀴 내림
+        { offset: 1, ...ground(0, 0, 1, 1) },                        // 가운데까지 달려와 멈춤
+      ], { duration: LAND_MS, easing: "linear" });
+      // 흐림은 그림에만 따로 (움직임은 화면 합성으로 부드럽게)
+      const blur = el.firstElementChild.animate(
+        [{ filter: "blur(3px)" }, { offset: TOUCH, filter: "blur(0px)" }, { filter: "blur(0px)" }],
+        { duration: LAND_MS });
+      move.id = "landing";
+      blur.id = "landing-blur";
+      landing = [move, blur];
+      move.finished.then(() => {
+        if (token === landingToken && stage.isConnected) { landing = []; onDone?.(); }
+      }).catch(() => { /* 다음 장으로 넘겨서 멈춘 경우 */ });
+    }
+
+    let firstShow = true;
     function update(n) {
+      const changed = firstShow || clamp(n, 0, last) !== i;
+      firstShow = false;
       i = clamp(n, 0, last);
       layers.forEach((el) => {
         const k = order.indexOf(el.dataset.id);
@@ -747,17 +818,21 @@
       const again = app.querySelector("#again");
       if (again) again.addEventListener("click", () => update(0));
 
-      // 마지막 A380: 글자 없이 폭죽 + 박수 소리만
-      if (i === last) confetti(28);
+      // 새 비행기 착륙. 마지막 A380은 가운데에 멈춘 뒤 글자 없이 폭죽 + 박수 소리만
+      if (changed) {
+        const cur = layers.find((el) => el.classList.contains("current"));
+        land(cur, order[i], i === last ? () => confetti(28) : null);
+      }
 
       updateNav(i);
       history.replaceState(null, "", `#/size/${i}`);
     }
 
     app.querySelector("#show-all").addEventListener("change", (e) => { showAll = e.target.checked; update(i); });
-    const onResize = () => { layout(); lockText(); };
+    // 화면 크기가 바뀌면 착륙은 바로 끝내고 새 크기로 다시 배치
+    const onResize = () => { stopLanding(true); layout(); lockText(); };
     window.addEventListener("resize", onResize);
-    cleanup = () => window.removeEventListener("resize", onResize);
+    cleanup = () => { window.removeEventListener("resize", onResize); landingToken++; stopLanding(false); };
 
     nav = { prev: () => update(i - 1), next: () => update(i + 1) };
     layout();
