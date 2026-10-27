@@ -159,6 +159,149 @@
       src.start();
       this.played++;
     },
+    // ── 착륙 소리 (크기 비교에서 비행기가 내려와 달려올 때, 애니메이션과 같은 시간표) ──
+    // 제트기: "슈우웅" 엔진 소리가 오른쪽에서 다가옴 → 바퀴 "끽!" + "쿵" → 역추진 "우와앙" → 엔진이 잦아들며 멈춤
+    // 프로펠러기(prop): "부르릉" 프로펠러 소리 → 바퀴 "끽" + "쿵" → 힘을 빼며 "부르르…" 잦아듦
+    // 작은 비행기일수록 높고 가벼운 소리, 큰 비행기일수록 낮고 묵직한 소리
+    noiseBuf: null,
+    noise(ac) {
+      if (!this.noiseBuf) {
+        const len = ac.sampleRate * 2;
+        this.noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
+        const d = this.noiseBuf.getChannelData(0);
+        for (let k = 0; k < len; k++) d[k] = Math.random() * 2 - 1;
+      }
+      const src = ac.createBufferSource();
+      src.buffer = this.noiseBuf;
+      src.loop = true;
+      return src;
+    },
+    landed: 0,       // 자동 검사용: 착륙 소리를 몇 번 냈는지
+    lastLanding: "", // 자동 검사용: 마지막 착륙 소리 종류 (jet / prop)
+    landing({ prop = false, length = 40, dur = 3, touch = 0.47, rollEnd = 0.55 } = {}) {
+      // 아직 한 번도 누르지 않아 소리 장치가 없으면 조용히 (휴대폰은 누른 뒤에만 소리를 낼 수 있음)
+      if (!this.ctx) return null;
+      const ac = this.get();
+      const t0 = ac.currentTime + 0.02;
+      const T = t0 + dur * touch;       // 바퀴가 땅에 닿는 때
+      const N = t0 + dur * rollEnd;     // 앞바퀴를 내리는 때
+      const end = t0 + dur;             // 가운데에 멈추는 때
+      const k = clamp(Math.pow(40 / length, 0.35), 0.75, 1.45); // 작을수록 높은 소리
+      const nodes = [];
+      const add = (n) => (nodes.push(n), n);
+
+      // 전체 음량(다가오며 커지고, 멈출 때 잦아듦) → 멈춤용 음량 → 좌우(오른쪽에서 가운데로)
+      const LOUD = 1.5;
+      const master = ac.createGain();
+      master.gain.setValueAtTime(0, t0);
+      master.gain.linearRampToValueAtTime(LOUD, t0 + 0.6);
+      master.gain.setValueAtTime(LOUD, end - 0.7);
+      master.gain.exponentialRampToValueAtTime(0.0001, end + 0.4);
+      const kill = ac.createGain();
+      let last = master.connect(kill);
+      if (ac.createStereoPanner) {
+        const pan = ac.createStereoPanner();
+        pan.pan.setValueAtTime(0.8, t0);
+        pan.pan.linearRampToValueAtTime(0.15, T);
+        pan.pan.linearRampToValueAtTime(0, end);
+        last = last.connect(pan);
+      }
+      last.connect(this.out);
+
+      const env = (param, points) => points.forEach(([t, v], n) => (n ? param.linearRampToValueAtTime(v, t) : param.setValueAtTime(v, t)));
+      const stopAt = end + 0.5;
+
+      if (prop) {
+        // 프로펠러: 톱니 모양 소리 두 겹(부르릉) + 바람 소리
+        const f0 = 62 * k;
+        [[1, 0.13], [2.004, 0.05]].forEach(([mul, vol]) => {
+          const osc = add(ac.createOscillator());
+          osc.type = "sawtooth";
+          env(osc.frequency, [[t0, f0 * mul * 1.08], [T, f0 * mul], [T + 0.5, f0 * mul * 0.78], [end, f0 * mul * 0.62]]);
+          const lp = ac.createBiquadFilter();
+          lp.type = "lowpass";
+          lp.frequency.value = 900;
+          const g = ac.createGain();
+          env(g.gain, [[t0, vol], [T, vol], [T + 0.5, vol * 0.7], [end, vol * 0.4]]);
+          osc.connect(lp).connect(g).connect(master);
+          osc.start(t0);
+          osc.stop(stopAt);
+        });
+        const air = add(this.noise(ac));
+        const lp = ac.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 1000 * k;
+        const g = ac.createGain();
+        env(g.gain, [[t0, 0.05], [T, 0.06], [end, 0.015]]);
+        air.connect(lp).connect(g).connect(master);
+        air.start(t0);
+        air.stop(stopAt);
+      } else {
+        // 제트 엔진 웅웅 소리(잡음을 낮게 거른 것): 다가옴 → 바퀴 닿은 뒤 역추진으로 크게 → 잦아듦
+        const roar = add(this.noise(ac));
+        const lp = ac.createBiquadFilter();
+        lp.type = "lowpass";
+        env(lp.frequency, [[t0, 750 * k], [T, 550 * k], [T + 0.35, 1500 * k], [T + 0.9, 1200 * k], [end, 380 * k]]);
+        const g = ac.createGain();
+        env(g.gain, [[t0, 0.24], [T, 0.2], [T + 0.4, 0.42], [T + 0.9, 0.36], [end, 0.05]]);
+        roar.connect(lp).connect(g).connect(master);
+        roar.start(t0);
+        roar.stop(stopAt);
+        // 엔진이 도는 높은 "슈우웅" 소리 두 겹 (살짝 어긋나게 해서 웅웅 맥놀이)
+        [1, 1.013].forEach((mul) => {
+          const osc = add(ac.createOscillator());
+          osc.type = "triangle";
+          const f = 2700 * k * mul;
+          env(osc.frequency, [[t0, f], [T, f * 0.9], [T + 0.4, f * 1.06], [end, f * 0.62]]);
+          const wg = ac.createGain();
+          env(wg.gain, [[t0, 0.03], [T, 0.026], [T + 0.4, 0.04], [end, 0.004]]);
+          osc.connect(wg).connect(master);
+          osc.start(t0);
+          osc.stop(stopAt);
+        });
+      }
+
+      // 바퀴가 땅에 닿을 때: 고무 바퀴 "끽!"(짧은 높은 잡음) + "쿵"(낮은 소리). 앞바퀴는 작게 한 번 더
+      const touchdown = (at, amp) => {
+        const chirp = add(this.noise(ac));
+        const bp = ac.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.frequency.value = 1800 * Math.sqrt(k);
+        bp.Q.value = 2.5;
+        const cg = ac.createGain();
+        cg.gain.setValueAtTime(0.0001, at);
+        cg.gain.exponentialRampToValueAtTime(0.32 * amp, at + 0.015);
+        cg.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+        chirp.connect(bp).connect(cg).connect(master);
+        chirp.start(at);
+        chirp.stop(at + 0.2);
+        const thump = add(ac.createOscillator());
+        thump.type = "sine";
+        thump.frequency.setValueAtTime(75, at);
+        thump.frequency.exponentialRampToValueAtTime(38, at + 0.18);
+        const tg = ac.createGain();
+        tg.gain.setValueAtTime(0.0001, at);
+        tg.gain.exponentialRampToValueAtTime(0.55 * amp, at + 0.01);
+        tg.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+        thump.connect(tg).connect(master);
+        thump.start(at);
+        thump.stop(at + 0.25);
+      };
+      touchdown(T, prop ? 0.6 : 1);
+      touchdown(N, prop ? 0.3 : 0.45);
+
+      this.played++;
+      this.landed++;
+      this.lastLanding = prop ? "prop" : "jet";
+      // 다음 장으로 넘기면 짧게 잦아들며 멈춤
+      return {
+        stop() {
+          const now = ac.currentTime;
+          kill.gain.setTargetAtTime(0, now, 0.04);
+          nodes.forEach((n) => { try { n.stop(now + 0.3); } catch { /* 이미 멈춤 */ } });
+        },
+      };
+    },
     init() {
       // 버튼·링크·카드·점·체크 상자를 누를 때마다 딸깍
       document.addEventListener("pointerdown", (e) => {
@@ -171,7 +314,37 @@
       }, true);
     },
   };
-  window.SkySound = { played: () => Sound.played }; // 자동 검사용
+  // 자동 검사용: 소리를 낸 횟수, 그리고 착륙 소리를 스피커 대신 메모리에 그려서 0.1초마다의 소리 크기를 잼
+  window.SkySound = {
+    played: () => Sound.played,
+    landed: () => Sound.landed,
+    lastLanding: () => Sound.lastLanding,
+    async measureLanding(opts) {
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!OAC) return null;
+      const sr = 22050;
+      const off = new OAC(2, sr * 4, sr);
+      const keep = { ctx: Sound.ctx, out: Sound.out, noiseBuf: Sound.noiseBuf, get: Sound.get };
+      Object.assign(Sound, { ctx: off, out: off.destination, noiseBuf: null, get: () => off });
+      try { Sound.landing(opts); } finally { Object.assign(Sound, keep); }
+      const buf = await off.startRendering();
+      const [l, r] = [buf.getChannelData(0), buf.getChannelData(1)];
+      const step = sr / 10;
+      const rms = [], side = [];
+      let peak = 0, bad = false;
+      for (let s = 0; s + step <= l.length; s += step) {
+        let sum = 0, sl = 0, srr = 0;
+        for (let k = s; k < s + step; k++) {
+          if (!Number.isFinite(l[k]) || !Number.isFinite(r[k])) bad = true;
+          sum += (l[k] * l[k] + r[k] * r[k]) / 2; sl += l[k] * l[k]; srr += r[k] * r[k];
+          peak = Math.max(peak, Math.abs(l[k]), Math.abs(r[k]));
+        }
+        rms.push(+Math.sqrt(sum / step).toFixed(4));
+        side.push(+(Math.sqrt(srr / step) - Math.sqrt(sl / step)).toFixed(4)); // +면 오른쪽이 더 큼
+      }
+      return { rms, side, peak: +peak.toFixed(3), bad };
+    },
+  };
 
   // ───────── 약속 도장 저장 (브라우저에 보관) ─────────
   const Store = {
@@ -185,7 +358,7 @@
   };
   const hasBadge = (key, done = Store.get()) => (done[key] || []).length >= J[key].promises.length;
 
-  // 폭죽 + 박수 소리 (크기 비교 마지막 A380, 고르기 우승, 배지 받기)
+  // 폭죽 + 박수 소리 (고르기 우승, 배지 받기)
   function confetti(n = 36) {
     Sound.applause();
     const items = ["🎉", "✨", "⭐", "🎈", "✈️", "💙"];
@@ -769,19 +942,23 @@
     // 새 비행기가 오른쪽 위에서 30도 비탈로 내려와 활주로 가운데보다 조금 오른쪽에 바퀴를 대고,
     // 앞바퀴를 내린 뒤 가운데까지 달려와 멈춤. 그동안 작고 흐릿한 그림 → 크고 진한 그림으로 바뀜.
     // 움직임은 기체 바닥 가운데(바퀴 자리)를 기준으로 계산함 (placePlane이 transform-origin을 그 자리로 맞춤)
+    // 착륙하는 동안 엔진 소리도 같은 시간표로 (Sound.landing). 날아오지 않는 '움직임 줄이기' 설정에서는 소리도 없음
     const LAND_MS = 3000;
     const TOUCH = 0.47;              // 바퀴가 땅에 닿는 때 (전체 시간 중 비율)
+    const NOSE = 0.55;               // 앞바퀴를 내리는 때
     const reduceMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
     let landing = [];                // 지금 움직이는 애니메이션
+    let engine = null;               // 지금 나는 착륙 소리
     let landingToken = 0;
     function stopLanding(finish) {
       landing.forEach((a) => (finish ? a.finish() : a.cancel()));
       landing = [];
+      if (engine) { engine.stop(); engine = null; }
     }
-    function land(el, id, onDone) {
+    function land(el, id) {
       const token = ++landingToken;
       stopLanding(false);
-      if (reduceMotion || !el || !el.animate) { onDone?.(); return; }
+      if (reduceMotion || !el || !el.animate) return;
       const W = stage.clientWidth;
       const planeW = pos[id].width;  // 다 왔을 때 기체 길이(px)
       const s0 = 0.28, sT = 0.72;    // 처음 크기, 땅에 닿을 때 크기 (마지막은 1)
@@ -800,7 +977,7 @@
         { offset: 0, ...air(1, 0.12) },
         { offset: 0.40, ...air(0.12, 0.75) },
         { offset: TOUCH, ...ground(dxT, 2, sT, 0.85) },              // 뒷바퀴부터 쿵 (코는 살짝 들고)
-        { offset: 0.55, ...ground(dxT - roll, 0, sT + 0.03, 0.92), easing: "cubic-bezier(.2,.6,.35,1)" }, // 앞바퀴 내림
+        { offset: NOSE, ...ground(dxT - roll, 0, sT + 0.03, 0.92), easing: "cubic-bezier(.2,.6,.35,1)" }, // 앞바퀴 내림
         { offset: 1, ...ground(0, 0, 1, 1) },                        // 가운데까지 달려와 멈춤
       ], { duration: LAND_MS, easing: "linear" });
       // 흐림은 그림에만 따로 (움직임은 화면 합성으로 부드럽게)
@@ -810,8 +987,9 @@
       move.id = "landing";
       blur.id = "landing-blur";
       landing = [move, blur];
+      engine = Sound.landing({ prop: !!P[id].prop, length: P[id].length, dur: LAND_MS / 1000, touch: TOUCH, rollEnd: NOSE });
       move.finished.then(() => {
-        if (token === landingToken && stage.isConnected) { landing = []; onDone?.(); }
+        if (token === landingToken) { landing = []; engine = null; } // 소리는 스스로 잦아들며 끝남
       }).catch(() => { /* 다음 장으로 넘겨서 멈춘 경우 */ });
     }
 
@@ -833,11 +1011,8 @@
       const again = app.querySelector("#again");
       if (again) again.addEventListener("click", () => update(0));
 
-      // 새 비행기 착륙. 마지막 A380은 가운데에 멈춘 뒤 글자 없이 폭죽 + 박수 소리만
-      if (changed) {
-        const cur = layers.find((el) => el.classList.contains("current"));
-        land(cur, order[i], i === last ? () => confetti(28) : null);
-      }
+      // 새 비행기 착륙 (+ 엔진 소리). 마지막 A380도 폭죽·박수 없이 착륙만
+      if (changed) land(layers.find((el) => el.classList.contains("current")), order[i]);
 
       updateNav(i);
       history.replaceState(null, "", `#/size/${i}`);

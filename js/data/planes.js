@@ -3,6 +3,7 @@
   - people: 탈 수 있는 사람 수 (전투기는 조종사 수, 여객기는 손님 좌석 수 대략)
   - speed : 빠르기 (시속 km, 전투기는 최고 속도, 여객기는 보통 날아가는 속도)
   - length/height : 길이·높이 (m) → 크기 비교 화면에서 실제 비율로 그릴 때 사용
+  - prop: true    : 프로펠러 비행기 → 크기 비교 착륙 소리를 "부르릉" 프로펠러 소리로 (나머지는 제트 엔진 "슈우웅")
   - 숫자는 아이 눈높이용 어림값이에요. 정확한 제원과 조금 다를 수 있어요.
 */
 window.PLANES = {
@@ -98,12 +99,12 @@ window.PLANES = {
     feature: "헬리콥터처럼 제자리에서 둥실 떠오르고, 하늘에 가만히 멈춰 있을 수도 있어요! 영국과 미국이 힘을 모아 만들었어요.",
   },
   spitfire: {
-    name: "스핏파이어", country: ["gb"], people: 1, speed: 650, length: 9.1, height: 3.9,
+    name: "스핏파이어", country: ["gb"], people: 1, speed: 650, length: 9.1, height: 3.9, prop: true,
     nick: "‘스핏파이어’는 씩씩하고 화끈한 친구", tag: "옛날 비행기",
     feature: "프로펠러로 나는 80살 넘은 옛날 비행기예요. 동그란 날개 모양이 예뻐요.",
   },
   p51: {
-    name: "P-51 머스탱", country: ["us"], people: 1, speed: 700, length: 9.8, height: 4.1,
+    name: "P-51 머스탱", country: ["us"], people: 1, speed: 700, length: 9.8, height: 4.1, prop: true,
     nick: "‘머스탱’은 들판을 달리는 야생마", tag: "옛날 비행기",
     feature: "프로펠러가 빙글빙글! 지금은 에어쇼에서 멋지게 날아요. 이 비행기 이름은 ‘돌리’예요.",
   },
@@ -197,13 +198,13 @@ window.PLANES = {
     feature: "브라질에서 만들었어요. 까만 옷을 입고, 코에 멋진 동물 얼굴 그림을 그렸어요.",
   },
   atr72: {
-    name: "ATR 72", country: ["fr", "it"], countryText: "프랑스와 이탈리아", airline: "에어 노스트룸",
+    name: "ATR 72", country: ["fr", "it"], countryText: "프랑스와 이탈리아", airline: "에어 노스트룸", prop: true,
     people: 70, speed: 510, length: 27.2, height: 7.7,
     nick: "날개에 프로펠러 두 개",
     feature: "프로펠러를 빙글빙글 돌려서 날아요. 가까운 섬이나 도시를 오가요. 프랑스와 이탈리아가 힘을 모아 만들었어요.",
   },
   q400: {
-    name: "대시 8 Q400", country: ["ca"], airline: "오스트리아항공", people: 78, speed: 667, length: 32.8, height: 8.3,
+    name: "대시 8 Q400", country: ["ca"], airline: "오스트리아항공", people: 78, speed: 667, length: 32.8, height: 8.3, prop: true,
     nick: "빠른 프로펠러 비행기",
     feature: "프로펠러 비행기 중에서 아주 빠른 편이에요. 날개가 몸통 위에 붙어 있어요.",
   },
@@ -214,7 +215,7 @@ window.PLANES = {
     feature: "사람을 태우는 비행기 중에서 세상에서 가장 빠른 비행기였어요! 뾰족한 코가 착륙할 때 아래로 꺾여요. 지금은 박물관에서 쉬어요.",
   },
   dc3: {
-    name: "더글러스 DC-3", country: ["us"], people: 28, speed: 333, length: 19.7, height: 5.2,
+    name: "더글러스 DC-3", country: ["us"], people: 28, speed: 333, length: 19.7, height: 5.2, prop: true,
     nick: "90살 할아버지 비행기", tag: "옛날 비행기",
     feature: "1935년에 처음 날았어요. 땅에서는 꼬리를 바닥에 대고 앉아 있어요.",
   },
@@ -264,12 +265,12 @@ window.PLANES = {
 
   // ───────── 크기 비교에만 나오는 비행기 ─────────
   c172: {
-    name: "세스나 172", country: ["us"], people: 4, speed: 226, length: 8.3, height: 2.7,
+    name: "세스나 172", country: ["us"], people: 4, speed: 226, length: 8.3, height: 2.7, prop: true,
     nick: "작은 프로펠러 비행기",
     feature: "비행기 조종을 처음 배울 때 많이 타는 작은 비행기예요.",
   },
   kt1: {
-    name: "KT-1 웅비", country: ["kr"], people: 2, speed: 648, length: 10.3, height: 3.7,
+    name: "KT-1 웅비", country: ["kr"], people: 2, speed: 648, length: 10.3, height: 3.7, prop: true,
     nick: "‘웅비’는 힘차게 날아오른다는 뜻",
     feature: "공군 조종사가 처음 비행을 배우는 우리나라 프로펠러 비행기예요.",
   },
