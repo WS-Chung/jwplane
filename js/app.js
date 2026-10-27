@@ -43,6 +43,16 @@
   const flag = (code) => `<img class="flag" src="${C[code].flag}" alt="${C[code].name} 국기">`;
   const countryName = (p) => p.countryText || p.country.map((c) => C[c].name).join("·");
   const listOf = (kind) => (kind === "fighters" ? window.FIGHTERS : window.AIRLINERS);
+  // 목록 카드 이름: 낱말 중간(E195-E2)에서 줄이 바뀌지 않게 낱말마다 묶고,
+  // 뒤에 붙는 짧은 말(II, XL, 8)은 앞 낱말에, 앞의 짧은 말(보잉, 코맥)은 뒤 낱말에 붙임
+  const cardName = (name) => name.split(" ").reduce((groups, word, i) => {
+    const last = groups[groups.length - 1];
+    const tail = /^[A-Za-z0-9]{1,2}$/.test(word);
+    const head = i === 1 && last.length <= 2;
+    if (last && (tail || head)) groups[groups.length - 1] = `${last} ${word}`;
+    else groups.push(word);
+    return groups;
+  }, []).map((g) => `<span class="w">${g}</span>`).join(" ");
   const box = (id) => META.planes[id] || { x: 0, y: 0, w: META.canvas.w, h: META.canvas.h };
 
   // 1600x800 캔버스 중 기체가 있는 부분만 보이게 잘라서 그리기 (원본 그림은 그대로, 보여주는 크기만 다르게)
@@ -79,22 +89,39 @@
       if (this.ctx.state === "suspended") this.ctx.resume();
       return this.ctx;
     },
-    // 딸깍: 높은 음이 아주 빠르게 낮아지며 사라지는 짧은 소리 (0.07초)
+    // 딸깍: 스위치를 누를 때처럼 아주 짧은 '톡' 두 번 ("딸" → 0.025초 뒤 조금 작은 "깍"), 음높이 변화 없음
+    clickBuf: null,
     click() {
       const ac = this.get();
       if (!ac) return;
-      const t = ac.currentTime;
-      const o = ac.createOscillator();
+      if (!this.clickBuf) {
+        const sr = ac.sampleRate;
+        const len = Math.floor(sr * 0.05);
+        const buf = ac.createBuffer(1, len, sr);
+        const d = buf.getChannelData(0);
+        // 한 번의 '톡' = 순간적인 잡음(0.6ms) + 아주 짧게 울리는 딱딱한 소리(3~4ms)
+        const tick = (at, ring, amp) => {
+          const s = Math.floor(at * sr);
+          for (let k = 0; s + k < len && k < sr * 0.012; k++) {
+            const x = k / sr;
+            const noise = (Math.random() * 2 - 1) * Math.exp(-x / 0.0006);
+            const body = Math.sin(2 * Math.PI * ring * x) * Math.exp(-x / 0.0035);
+            d[s + k] += amp * (0.7 * noise + 0.5 * body);
+          }
+        };
+        tick(0, 2600, 0.9);      // 딸
+        tick(0.025, 1700, 0.6);  // 깍
+        this.clickBuf = buf;
+      }
+      const src = ac.createBufferSource();
+      src.buffer = this.clickBuf;
+      const hp = ac.createBiquadFilter(); // 낮은 웅웅거림은 빼고 또렷하게
+      hp.type = "highpass";
+      hp.frequency.value = 900;
       const g = ac.createGain();
-      o.type = "triangle";
-      o.frequency.setValueAtTime(1600, t);
-      o.frequency.exponentialRampToValueAtTime(520, t + 0.05);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.22, t + 0.004);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-      o.connect(g).connect(this.out);
-      o.start(t);
-      o.stop(t + 0.08);
+      g.gain.value = 0.55;
+      src.connect(hp).connect(g).connect(this.out);
+      src.start();
       this.played++;
     },
     // 박수: 여러 사람이 손뼉 치는 소리를 짧은 잡음 덩어리로 흉내 (약 2.5초, 커졌다가 잦아듦)
@@ -225,13 +252,14 @@
     const title = fighter ? "하늘을 지키는 비행기" : "사람을 태우는 비행기";
     setTitle(title);
     app.innerHTML = `
-      <section>
+      <section class="gallery">
         <h2 class="section-title">${fighter ? "🛡️" : "✈️"} ${title} <small>${fighter ? "전투기" : "여객기"}</small></h2>
+        <p class="rotate-hint">📱 휴대폰을 옆으로 돌리면 더 크게 보여요</p>
         <div class="card-grid">
           ${listOf(kind).map((id) => `
-            <a class="plane-card" href="#/${kind}/${id}">
+            <a class="plane-card" href="#/${kind}/${id}" aria-label="${P[id].name}">
               <span class="thumb-box">${planeImg(id, { thumb: true })}</span>
-              <span class="name">${flag(P[id].country[0])} ${P[id].name}</span>
+              <span class="name"><span>${flag(P[id].country[0])} ${cardName(P[id].name)}</span></span>
             </a>`).join("")}
         </div>
       </section>`;
@@ -917,7 +945,7 @@
   }
 
   // ───────── 최고의 비행기 고르기 (이상형 월드컵) ─────────
-  // 전투기·여객기 40대를 섞어 무작위로 32대를 뽑고, 두 대씩 겨뤄서 고른 비행기만 다음 판으로 올라가요. (32강 → 결승, 31번 고르기)
+  // 전투기·여객기 48대를 섞어 무작위로 32대를 뽑고, 두 대씩 겨뤄서 고른 비행기만 다음 판으로 올라가요. (32강 → 결승, 31번 고르기)
   const CUP_SIZE = 32;
   const CupStore = {
     key: "skyfriends.cup.v1",
