@@ -825,8 +825,8 @@
     const h = (w * ch) / cw;
     const left = cx - ((b.x + b.w / 2) / cw) * w;
     const top = groundY - ((b.y + b.h) / ch) * h;
-    // 기울이고 키우는 기준점 = 뒷바퀴가 땅에 닿는 자리 (tools/pivots.py가 잰 gx, 없으면 기체 바닥 가운데)
-    const origin = `${((b.gx ?? b.x + b.w / 2) / cw) * 100}% ${((b.y + b.h) / ch) * 100}%`;
+    // 기울이고 키우는 기준점 = 기체 바닥 가운데 (바퀴가 땅에 닿는 자리)
+    const origin = `${((b.x + b.w / 2) / cw) * 100}% ${((b.y + b.h) / ch) * 100}%`;
     els.forEach((el) => {
       el.style.left = left + "px";
       el.style.top = top + "px";
@@ -929,33 +929,37 @@
     const updateNav = bindSlideNav(app, order.length, (n) => update(n), () => i);
 
     // 모든 비행기를 같은 축척(1m = 몇 px)으로 배치. 가장 큰 A380이 무대에 꼭 맞도록 축척을 정함
+    // 사진이 기울어 있는 비행기(콩코드 반시계 10도, Q400 4도, KF-21 15도, 타이푼 4도, F-16 3도)는 크기 비교에서 돌려서 보여 줌.
+    // 돌린 뒤 바퀴가 다시 땅에 닿고 한가운데가 제자리에 오게 옮기는 거리(px, 다 왔을 때 크기 기준)도 함께.
+    // 각도는 selection.json의 tilt, 거리는 tools/tilts.py가 그림을 보고 재서 js/image-meta.js에 적어 둔 값(tdx·tdy)
+    function restTilt(id) {
+      const b = box(id);
+      const k = pos[id] ? pos[id].width / b.w : 0; // 캔버스 1px → 화면 px
+      return { deg: b.tilt || 0, dx: (b.tdx || 0) * k, dy: (b.tdy || 0) * k };
+    }
     let sc = null;
     function layout() {
       sc = stageScale(stage, order);
       order.forEach((id) => {
         const els = layers.filter((el) => el.dataset.id === id);
         pos[id] = placePlane(els, id, sc);
-        // 사진이 기울어 있는 비행기(콩코드는 코를 든 사진)는 땅에서 수평이 되게 돌려 둠 (착륙이 끝난 모습 = 이 각도)
-        const tilt = box(id).tilt || 0;
-        els.forEach((el) => (el.style.transform = tilt ? `rotate(${tilt}deg)` : ""));
+        // 사진이 기울어 있는 비행기는 정해 둔 각도로 돌려 둠 (착륙이 끝나고 멈춘 모습 = 이 각도, 다음 장의 흐릿한 비행기도)
+        const t = restTilt(id);
+        els.forEach((el) => (el.style.transform = t.deg ? `translate(${t.dx}px, ${t.dy}px) rotate(${t.deg}deg)` : ""));
       });
       // 아빠차·정우·정연은 오른쪽 아래에 고정 (모든 장이 같은 축척이라 크기도 늘 같음)
       sizeKids(kids, sc);
     }
 
     // ── 착륙 애니메이션 ──
-    // 새 비행기가 무대 오른쪽 끝, 땅에서 1/3쯤 높이에서 나타나 앞바퀴를 든 채(코를 시계 방향으로 10도 들고) 내려와서
-    // 활주로 가운데보다 조금 오른쪽에 뒷바퀴부터 닿고, 가운데로 달려가는 동안 코를 다시 내려(반시계 10도) 앞바퀴를 대고 멈춤.
-    // 그동안 작고 흐릿한 그림 → 크고 진한 그림으로 바뀜.
-    // 움직임은 뒷바퀴가 땅에 닿는 자리를 기준으로 계산함 (placePlane이 transform-origin을 그 자리로 맞춤)
-    // - 꼬리가 낮은 비행기는 꼬리가 땅을 파고들지 않을 만큼만 코를 듦 (tools/pivots.py가 잰 up 각도)
-    // - 사진이 기울어 있는 비행기(콩코드: 코를 든 사진)는 사진 그대로 내려와서, 멈출 때 tilt 각도(반시계 10도)로 수평
+    // 새 비행기가 오른쪽 위에서 30도 비탈로 내려와 활주로 가운데보다 조금 오른쪽에 바퀴를 대고,
+    // 앞바퀴를 내린 뒤 가운데까지 달려와 멈춤. 그동안 작고 흐릿한 그림 → 크고 진한 그림으로 바뀜.
+    // 움직임은 기체 바닥 가운데(바퀴 자리)를 기준으로 계산함 (placePlane이 transform-origin을 그 자리로 맞춤)
+    // 사진이 기울어 있는 비행기(restTilt)는 처음 나타날 때부터 멈출 때까지 그 각도만큼 더 돌려서 보여 줌
     // 착륙하는 동안 엔진 소리도 같은 시간표로 (Sound.landing). 날아오지 않는 '움직임 줄이기' 설정에서는 소리도 없음
     const LAND_MS = 3000;
-    const TOUCH = 0.47;              // 뒷바퀴가 땅에 닿는 때 (전체 시간 중 비율)
-    const NOSE_ROLL = [0.05, 0.55];  // 땅에 닿은 뒤 달리는 동안, 이 구간(달리기 시간 중 비율)에 코를 내림
-    const NOSE = TOUCH + NOSE_ROLL[1] * (1 - TOUCH); // 앞바퀴가 땅에 닿는 때
-    const PITCH = 10;                // 날아올 때 코를 드는 각도
+    const TOUCH = 0.47;              // 바퀴가 땅에 닿는 때 (전체 시간 중 비율)
+    const NOSE = 0.55;               // 앞바퀴를 내리는 때
     const reduceMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
     let landing = [];                // 지금 움직이는 애니메이션
     let engine = null;               // 지금 나는 착륙 소리
@@ -970,40 +974,29 @@
       stopLanding(false);
       if (reduceMotion || !el || !el.animate) return;
       const W = stage.clientWidth;
-      const b = box(id);
-      const planeW = pos[id].width;          // 다 왔을 때 기체 길이(px)
-      const planeH = (planeW * b.h) / b.w;   // 다 왔을 때 기체 높이(px)
-      const gx = b.gx ?? b.x + b.w / 2;
-      const tailW = ((b.x + b.w - gx) / b.w) * planeW; // 뒷바퀴부터 꼬리 끝까지(px)
-      const tilt = b.tilt || 0;              // 멈췄을 때 각도 (보통 0)
-      const pitch = clamp(Math.min(PITCH, (b.up ?? 99) - 1.5 - tilt), 0, PITCH); // 날아올 때 더 드는 각도
-      const s0 = 0.28, sT = 0.72;            // 처음 크기, 땅에 닿을 때 크기 (마지막은 1)
-      // 땅에 닿는 자리(뒷바퀴): 가운데보다 조금 오른쪽 (큰 비행기도 꼬리가 무대 밖으로 덜 나가게)
-      const dxT = clamp(Math.min(W * 0.14, W / 2 - 6 - sT * tailW), W * 0.05, W * 0.14);
-      const dxS = W * 0.56;                  // 출발: 무대 오른쪽 끝 조금 바깥
-      // 무대 오른쪽 끝을 지날 때 기체 한가운데가 땅에서 1/3 높이에 오도록 출발 높이(a0)를 정함
-      const pEdge = (dxS - W / 2) / (dxS - dxT);
-      const sEdge = s0 + (sT - s0) * pEdge;
-      const wheelEdge = Math.max(sc.groundY * 0.08, sc.groundY / 3 - (sEdge * planeH) / 2);
-      const a0 = wheelEdge / Math.pow(1 - pEdge, 1.3);
-      const smooth = (t) => t * t * (3 - 2 * t);
-      // u(0~1) 때의 모습. 날아오는 동안: 땅으로 갈수록 덜 가파르게 내려와 사뿐히 닿음(높이 = a0 × 남은 거리^1.3)
-      const at = (u) => {
-        if (u < TOUCH) {
-          const p = u / TOUCH;
-          return { x: dxS + (dxT - dxS) * p, y: -a0 * Math.pow(1 - p, 1.3), deg: tilt + pitch, s: s0 + (sT - s0) * p, op: 0.12 + 0.73 * p };
-        }
-        const r = (u - TOUCH) / (1 - TOUCH);  // 땅에서 달리기: 점점 느려지며 가운데에 멈춤
-        const nose = smooth(clamp((r - NOSE_ROLL[0]) / (NOSE_ROLL[1] - NOSE_ROLL[0]), 0, 1));
-        return { x: dxT * Math.pow(1 - r, 3), y: 0, deg: tilt + pitch * (1 - nose), s: sT + (1 - sT) * (1 - (1 - r) ** 2), op: 0.85 + 0.15 * Math.min(1, r * 2) };
+      const planeW = pos[id].width;  // 다 왔을 때 기체 길이(px)
+      const t = restTilt(id);        // 사진이 기울어 있는 비행기는 처음부터 끝까지 이만큼 더 돌림 (보통 0)
+      const s0 = 0.28, sT = 0.72;    // 처음 크기, 땅에 닿을 때 크기 (마지막은 1)
+      // 땅에 닿는 자리: 가운데보다 조금 오른쪽 (큰 비행기도 꼬리가 무대 밖으로 덜 나가게)
+      const dxT = clamp(Math.min(W * 0.14, W / 2 - 6 - (sT * planeW) / 2), W * 0.05, W * 0.14);
+      const dxS = W * 0.56;          // 출발: 무대 오른쪽 끝 조금 바깥
+      const a0 = (dxS - dxT) * Math.tan(Math.PI / 6); // 30도 비탈의 출발 높이
+      // 기울인 비행기를 땅에 맞추는 거리는 그림 크기에 맞춰 함께 작아짐
+      const tf = (x, y, deg, s) => `translate(${x + t.dx * s}px, ${y + t.dy * s}px) rotate(${deg + t.deg}deg) scale(${s})`;
+      // f = 남은 높이 비율(1 → 0). 30도 직선 위를 내려오면서 기체 기울기도 -30도 → 0도로 차츰 펴짐
+      const air = (f, opacity) => {
+        const s = sT + (s0 - sT) * f;
+        return { transform: tf(dxT + (dxS - dxT) * f, -a0 * f, -30 * f, s), opacity };
       };
-      const frames = [];
-      for (let k = 0; k <= 60; k++) frames.push(k / 60);
-      frames.push(TOUCH);
-      const move = el.animate([...new Set(frames)].sort((m, n) => m - n).map((u) => {
-        const f = at(u);
-        return { offset: u, transform: `translate(${f.x}px, ${f.y}px) rotate(${f.deg}deg) scale(${f.s})`, opacity: f.op };
-      }), { duration: LAND_MS, easing: "linear" });
+      const ground = (x, deg, s, opacity) => ({ transform: tf(x, 0, deg, s), opacity });
+      const roll = Math.min(dxT * 0.35, (dxS - dxT) * 0.12); // 앞바퀴를 내리는 동안 굴러가는 거리
+      const move = el.animate([
+        { offset: 0, ...air(1, 0.12) },
+        { offset: 0.40, ...air(0.12, 0.75) },
+        { offset: TOUCH, ...ground(dxT, 2, sT, 0.85) },              // 뒷바퀴부터 쿵 (코는 살짝 들고)
+        { offset: NOSE, ...ground(dxT - roll, 0, sT + 0.03, 0.92), easing: "cubic-bezier(.2,.6,.35,1)" }, // 앞바퀴 내림
+        { offset: 1, ...ground(0, 0, 1, 1) },                        // 가운데까지 달려와 멈춤
+      ], { duration: LAND_MS, easing: "linear" });
       // 흐림은 그림에만 따로 (움직임은 화면 합성으로 부드럽게)
       const blur = el.firstElementChild.animate(
         [{ filter: "blur(3px)" }, { offset: TOUCH, filter: "blur(0px)" }, { filter: "blur(0px)" }],
