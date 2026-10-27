@@ -13,5 +13,5 @@ window.COUNTRIES = {
   jp: { name: "일본", flag: "images/flags/jp.svg" },
   br: { name: "브라질", flag: "images/flags/br.svg" },
   ca: { name: "캐나다", flag: "images/flags/ca.svg" },
-  eu: { name: "유럽", flag: "images/flags/eu.svg" },
+  // 유럽연합기(eu)는 아이가 알기 어려워서 쓰지 않음. 여러 나라가 만든 비행기는 그 나라 국기를 모두 보여 줌
 };

@@ -59,7 +59,7 @@ window.PLANES = {
   },
   typhoon: {
     name: "유로파이터 타이푼", country: ["gb", "de", "it", "es"], people: 1, speed: 2495, length: 16.0, height: 5.3,
-    nick: "‘타이푼’은 태풍이라는 뜻", countryText: "유럽 네 나라",
+    nick: "‘타이푼’은 태풍이라는 뜻",
     feature: "영국, 독일, 이탈리아, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   rafale: {
@@ -95,7 +95,7 @@ window.PLANES = {
   harrier: {
     name: "해리어", country: ["gb", "us"], airline: "미국 해병대", people: 1, speed: 1080, length: 14.1, height: 3.6,
     nick: "‘해리어’는 매를 닮은 새 이름", countryText: "영국과 미국",
-    feature: "헬리콥터처럼 제자리에서 둥실 떠오르고, 하늘에 가만히 멈춰 있을 수도 있어요!",
+    feature: "헬리콥터처럼 제자리에서 둥실 떠오르고, 하늘에 가만히 멈춰 있을 수도 있어요! 영국과 미국이 힘을 모아 만들었어요.",
   },
   spitfire: {
     name: "스핏파이어", country: ["gb"], people: 1, speed: 650, length: 9.1, height: 3.9,
@@ -130,10 +130,10 @@ window.PLANES = {
 
   // ───────── 사람을 태우는 비행기 (여객기) ─────────
   a380: {
-    name: "에어버스 A380", country: ["eu"], countryText: "유럽 여러 나라", airline: "대한항공",
+    name: "에어버스 A380", country: ["fr", "de", "gb", "es"], airline: "대한항공",
     people: 407, speed: 900, length: 72.7, height: 24.1,
     nick: "하늘을 나는 2층 버스", tag: "세상에서 제일 큰 비행기",
-    feature: "세상에서 제일 큰 비행기예요! 비행기 안이 1층과 2층으로 나뉘어 있어요.",
+    feature: "세상에서 제일 큰 비행기예요! 비행기 안이 1층과 2층으로 나뉘어 있어요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   // 747·787은 크기 비교에서 A380(대한항공)과 색이 겹쳐 헷갈리지 않도록 다른 항공사 사진을 씀
   b747: {
@@ -152,22 +152,22 @@ window.PLANES = {
     feature: "날 때 날개가 새처럼 위로 휘어져요. 창문이 크고, 버튼으로 창문 색이 바뀌어요. 이 비행기는 일본 항공사 ANA의 비행기예요.",
   },
   a350: {
-    name: "에어버스 A350", country: ["eu"], countryText: "유럽 여러 나라", airline: "아시아나항공",
+    name: "에어버스 A350", country: ["fr", "de", "gb", "es"], airline: "아시아나항공",
     people: 311, speed: 900, length: 66.8, height: 17.1,
     nick: "날개 끝이 쏙 올라간 비행기",
-    feature: "날개 끝이 새 날개처럼 위로 휘어 있어요. 가벼워서 연료를 아껴요.",
+    feature: "날개 끝이 새 날개처럼 위로 휘어 있어요. 가벼워서 연료를 아껴요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   a330: {
-    name: "에어버스 A330", country: ["eu"], countryText: "유럽 여러 나라", airline: "대한항공",
+    name: "에어버스 A330", country: ["fr", "de", "gb", "es"], airline: "대한항공",
     people: 276, speed: 870, length: 63.7, height: 16.8,
     nick: "먼 나라도 거뜬한 튼튼이",
-    feature: "엔진 두 개로 바다를 건너 먼 나라까지 날아가요.",
+    feature: "엔진 두 개로 바다를 건너 먼 나라까지 날아가요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   a340: {
-    name: "에어버스 A340", country: ["eu"], countryText: "유럽 여러 나라", airline: "버진 애틀랜틱",
+    name: "에어버스 A340", country: ["fr", "de", "gb", "es"], airline: "버진 애틀랜틱",
     people: 310, speed: 880, length: 75.4, height: 17.2,
     nick: "엔진이 네 개인 길쭉이",
-    feature: "엔진이 4개! 몸이 아주 길어서 A380보다도 길어요.",
+    feature: "엔진이 4개! 몸이 아주 길어서 세상에서 제일 큰 비행기인 A380보다도 길어요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   b767: {
     name: "보잉 767", country: ["us"], airline: "아시아나항공", people: 250, speed: 850, length: 54.9, height: 15.9,
@@ -177,19 +177,19 @@ window.PLANES = {
   b737: {
     name: "보잉 737", country: ["us"], airline: "제주항공", people: 189, speed: 840, length: 39.5, height: 12.5,
     nick: "제주도 가는 비행기",
-    feature: "제주도 갈 때 많이 타요! 사람을 태우는 큰 비행기 중에서 가장 많이 만들어진 비행기 가족이에요.",
+    feature: "제주도 갈 때 많이 타요! 하늘에 가장 많이 날아다니는 비행기예요.",
   },
   a321: {
-    name: "에어버스 A321neo", country: ["eu"], countryText: "유럽 여러 나라", airline: "아시아나항공",
+    name: "에어버스 A321neo", country: ["fr", "de", "gb", "es"], airline: "아시아나항공",
     people: 188, speed: 840, length: 44.5, height: 11.8,
     nick: "‘neo’는 새롭다는 뜻",
-    feature: "가까운 나라에 갈 때 타요. 연료를 아끼고 소리가 조용해요.",
+    feature: "가까운 나라에 갈 때 타요. 연료를 아끼고 소리가 조용해요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   a220: {
-    name: "에어버스 A220", country: ["ca", "eu"], countryText: "캐나다와 유럽", airline: "대한항공",
+    name: "에어버스 A220", country: ["ca", "fr"], countryText: "캐나다와 프랑스", airline: "대한항공",
     people: 140, speed: 830, length: 38.7, height: 11.5,
     nick: "조용조용 꼬마 비행기",
-    feature: "캐나다에서 태어나서 에어버스 가족이 되었어요. 창문이 커서 바깥 구경하기 좋아요.",
+    feature: "여러 나라가 함께 만들었어요. 창문이 커서 바깥 구경하기 좋아요.",
   },
   e195: {
     name: "엠브라에르 E195-E2", country: ["br"], people: 132, speed: 830, length: 41.5, height: 10.9,
@@ -200,7 +200,7 @@ window.PLANES = {
     name: "ATR 72", country: ["fr", "it"], countryText: "프랑스와 이탈리아", airline: "에어 노스트룸",
     people: 70, speed: 510, length: 27.2, height: 7.7,
     nick: "날개에 프로펠러 두 개",
-    feature: "프로펠러를 빙글빙글 돌려서 날아요. 가까운 섬이나 도시를 오가요.",
+    feature: "프로펠러를 빙글빙글 돌려서 날아요. 가까운 섬이나 도시를 오가요. 프랑스와 이탈리아가 힘을 모아 만들었어요.",
   },
   q400: {
     name: "대시 8 Q400", country: ["ca"], airline: "오스트리아항공", people: 78, speed: 667, length: 32.8, height: 8.3,
@@ -211,7 +211,7 @@ window.PLANES = {
     name: "콩코드", country: ["gb", "fr"], countryText: "영국과 프랑스", airline: "영국항공",
     people: 100, speed: 2180, length: 61.7, height: 12.2,
     nick: "‘콩코드’는 사이좋게 함께라는 뜻", tag: "소리보다 빠른 비행기",
-    feature: "사람을 태우고 소리보다 2배나 빨리 날았던 비행기예요! 뾰족한 코가 착륙할 때 아래로 꺾여요. 지금은 박물관에서 쉬어요.",
+    feature: "사람을 태우는 비행기 중에서 세상에서 가장 빠른 비행기였어요! 뾰족한 코가 착륙할 때 아래로 꺾여요. 지금은 박물관에서 쉬어요.",
   },
   dc3: {
     name: "더글러스 DC-3", country: ["us"], people: 28, speed: 333, length: 19.7, height: 5.2,
@@ -229,10 +229,10 @@ window.PLANES = {
     feature: "중국이 직접 만든 비행기예요. 2023년부터 손님을 태우기 시작했어요.",
   },
   beluga: {
-    name: "에어버스 벨루가 XL", country: ["eu"], countryText: "유럽 여러 나라", cargo: true,
+    name: "에어버스 벨루가 XL", country: ["fr", "de", "gb", "es"], cargo: true,
     people: 2, speed: 737, length: 63.1, height: 18.9,
     nick: "웃는 흰고래를 닮은 비행기", tag: "짐 나르는 비행기",
-    feature: "고래 얼굴을 닮았죠? 사람 대신 비행기 날개처럼 아주 큰 짐을 실어 날라요.",
+    feature: "고래 얼굴을 닮았죠? 사람 대신 비행기 날개처럼 아주 큰 짐을 실어 날라요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   lcf: {
     name: "보잉 747 드림리프터", country: ["us"], cargo: true, people: 2, speed: 878, length: 71.7, height: 21.5,
@@ -246,10 +246,10 @@ window.PLANES = {
     feature: "몸이 연필처럼 길쭉하고 날씬해요. 힘이 세서 짧은 활주로에서도 씩씩하게 떠요. 오로라가 보이는 추운 나라 아이슬란드의 비행기예요.",
   },
   a320: {
-    name: "에어버스 A320", country: ["eu"], countryText: "유럽 여러 나라", airline: "이지젯",
+    name: "에어버스 A320", country: ["fr", "de", "gb", "es"], airline: "이지젯",
     people: 180, speed: 830, length: 37.6, height: 11.8,
     nick: "세계 곳곳을 바쁘게 나는 비행기",
-    feature: "운전대 대신 옆에 있는 작은 막대로 운전해요. 이 비행기는 주황색이 멋진 영국 항공사 이지젯이에요.",
+    feature: "운전대 대신 옆에 있는 작은 막대로 운전해요. 이 비행기는 주황색이 멋진 영국 항공사 이지젯이에요. 프랑스, 독일, 영국, 스페인 네 나라가 힘을 모아 만들었어요.",
   },
   crj900: {
     name: "봄바디어 CRJ900", country: ["ca"], airline: "루프트한자 시티라인", people: 90, speed: 830, length: 36.2, height: 7.5,
