@@ -809,18 +809,16 @@
     let ppm = Infinity;
     ids.forEach((id) => {
       const b = box(id);
-      const L = viewLength(id);
-      ppm = Math.min(ppm, (W * 0.94 - reservePx) / (L + reserveM), usableH / ((L * b.h) / b.w));
+      const L = P[id].length;
+      ppm = Math.min(ppm, (W * 0.94 - reservePx) / (L + reserveM), usableH / ((L * b.h * squash(id)) / b.w));
     });
     return { W, groundY, ppm };
   }
 
-  // 크기 비교 그림에서만 쓰는 '보이는 크기' 예외.
-  // 747은 실제 길이가 A380과 비슷하지만(70.7m, 72.7m) 꼬리가 높고 머리 위 혹이 커서 A380보다 커 보이는 착시가 있어요.
-  // 그래서 크기 비교 그림(차례대로 보기·골라서 비교하기)에서만 88% 크기로 그려요.
-  // 화면에 적는 길이·높이 숫자, 설명 문장, 자세히 보기 화면은 실제 값 그대로예요.
-  const SIZE_VIEW_SCALE = { b747: 0.88 };
-  const viewLength = (id) => P[id].length * (SIZE_VIEW_SCALE[id] || 1);
+  // 크기 비교 그림(차례대로 보기·골라서 비교하기)에서만: 747은 키(세로)만 92%로 눌러서 그림. 길이(가로)는 실제 비율 그대로.
+  // 747 사진은 길이에 비해 키가 실제(19.4m)보다 크게 찍혀 있어서, 그대로 그리면 A380(24.1m)과 키가 비슷해 보이기 때문
+  const SIZE_VIEW_SQUASH = { b747: 0.92 };
+  const squash = (id) => SIZE_VIEW_SQUASH[id] || 1;
 
   // 차례대로 보기에서만: 마지막 A380을 1.04배로 조금 더 크게 그려서 "제일 크다"를 강조.
   // 축척(ppm)은 그대로 두고 그 비행기만 키움. 무대를 벗어나면 무대에 꼭 찰 만큼만 키움
@@ -829,8 +827,8 @@
     const want = SIZE_ORDER_GROW[id] || 1;
     if (want === 1) return 1;
     const b = box(id);
-    const planeW = viewLength(id) * ppm;
-    const planeH = (planeW * b.h) / b.w;
+    const planeW = P[id].length * ppm;
+    const planeH = (planeW * b.h * squash(id)) / b.w;
     const EDGE = 4; // 무대 가장자리와 띄우는 거리(px)
     return Math.max(1, Math.min(want, (W - 2 * EDGE) / planeW, (groundY - EDGE) / planeH));
   }
@@ -841,9 +839,9 @@
     const b = box(id);
     const cw = META.canvas.w;
     const ch = META.canvas.h;
-    const planeW = viewLength(id) * ppm * grow; // 화면에서 기체 길이(px)
+    const planeW = P[id].length * ppm * grow; // 화면에서 기체 길이(px), 모든 비행기가 실제 길이 비율 그대로
     const w = (planeW * cw) / b.w;            // 이미지 전체 폭(px)
-    const h = (w * ch) / cw;
+    const h = ((w * ch) / cw) * squash(id);   // 이미지 전체 높이(px). 747만 세로로 눌림 (그림이 틀에 꽉 차게 늘어나서 같이 눌림)
     const left = cx - ((b.x + b.w / 2) / cw) * w;
     const top = groundY - ((b.y + b.h) / ch) * h;
     // 기울이고 키우는 기준점 = 기체 바닥 가운데 (바퀴가 땅에 닿는 자리)
