@@ -307,13 +307,17 @@
     },
     init() {
       // 버튼·링크·카드·점·체크 상자를 누를 때마다 딸깍
+      // 단, data-quiet 안의 버튼(크기 비교 ◀ ▶·점·처음부터)은 조용히: 바로 착륙 소리가 나서 겹쳐 들리지 않게
+      const quiet = (el) => !!el.closest("[data-quiet]");
       document.addEventListener("pointerdown", (e) => {
         if (e.button > 0) return;
-        if (e.target.closest("button, a, label, input")) this.click();
+        const hit = e.target.closest("button, a, label, input");
+        if (hit && !quiet(hit)) this.click();
       }, true);
       // 키보드로 누를 때(Enter·Space)도
       document.addEventListener("keydown", (e) => {
-        if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest("button, a")) this.click();
+        const hit = (e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest("button, a");
+        if (hit && !quiet(hit)) this.click();
       }, true);
     },
   };
@@ -818,12 +822,26 @@
   const SIZE_VIEW_SCALE = { b747: 0.88 };
   const viewLength = (id) => P[id].length * (SIZE_VIEW_SCALE[id] || 1);
 
+  // 차례대로 보기에서만: 마지막 A380을 1.04배로 조금 더 크게 그려서 "제일 크다"를 강조.
+  // 축척(ppm)은 그대로 두고 그 비행기만 키움. 무대를 벗어나면 무대에 꼭 찰 만큼만 키움
+  const SIZE_ORDER_GROW = { a380: 1.04 };
+  function growToFit(id, { W, groundY, ppm }) {
+    const want = SIZE_ORDER_GROW[id] || 1;
+    if (want === 1) return 1;
+    const b = box(id);
+    const planeW = viewLength(id) * ppm;
+    const planeH = (planeW * b.h) / b.w;
+    const EDGE = 4; // 무대 가장자리와 띄우는 거리(px)
+    return Math.max(1, Math.min(want, (W - 2 * EDGE) / planeW, (groundY - EDGE) / planeH));
+  }
+
   // 비행기 그림(1600x800 캔버스)을 실제 길이 비율 크기로 무대 가운데(cx) 땅 위에 놓음. 기체 부분의 왼쪽 끝·폭을 돌려줌
-  function placePlane(els, id, { W, groundY, ppm, cx = W / 2 }) {
+  // grow: 그 비행기만 이만큼 더 크게 (growToFit)
+  function placePlane(els, id, { W, groundY, ppm, cx = W / 2 }, grow = 1) {
     const b = box(id);
     const cw = META.canvas.w;
     const ch = META.canvas.h;
-    const planeW = viewLength(id) * ppm;      // 화면에서 기체 길이(px)
+    const planeW = viewLength(id) * ppm * grow; // 화면에서 기체 길이(px)
     const w = (planeW * cw) / b.w;            // 이미지 전체 폭(px)
     const h = (w * ch) / cw;
     const left = cx - ((b.x + b.w / 2) / cw) * w;
@@ -917,7 +935,7 @@
           ${kidsHtml()}
         </div>
         <p class="rotate-hint">📱 휴대폰을 옆으로 돌리면 더 크게 보여요</p>
-        <div class="size-info">
+        <div class="size-info" data-quiet>
           <div class="size-text" id="size-text"></div>
           ${slideNav(order.length)}
         </div>
@@ -945,7 +963,7 @@
       sc = stageScale(stage, order);
       order.forEach((id) => {
         const els = layers.filter((el) => el.dataset.id === id);
-        pos[id] = placePlane(els, id, sc);
+        pos[id] = placePlane(els, id, sc, growToFit(id, sc));
         // 사진이 기울어 있는 비행기는 정해 둔 각도로 돌려 둠 (착륙이 끝나고 멈춘 모습 = 이 각도, 다음 장의 흐릿한 비행기도)
         const t = restTilt(id);
         els.forEach((el) => (el.style.transform = t.deg ? `translate(${t.dx}px, ${t.dy}px) rotate(${t.deg}deg)` : ""));
@@ -1044,7 +1062,8 @@
     window.addEventListener("resize", onResize);
     cleanup = () => { window.removeEventListener("resize", onResize); landingToken++; stopLanding(false); };
 
-    nav = { prev: () => update(i - 1), next: () => update(i + 1) };
+    // quiet: 넘길 때 딸깍 없이 착륙 소리만 (◀ ▶·점·처음부터 버튼은 위 .size-info의 data-quiet, 밀기·← → 키는 이 값)
+    nav = { prev: () => update(i - 1), next: () => update(i + 1), quiet: true };
     layout();
     update(i);
     lockText();
@@ -1073,12 +1092,9 @@
     const sel = [first, second].map((id) => (comparable(id) ? id : null));
     if (sel[0] && sel[0] === sel[1]) sel[1] = null;
     let active = null; // 다음에 고를 칸 (null이면 비어 있는 칸, 다 찼으면 2번)
+    // 고르기 목록: 종류별 제목 없이 한 줄로 쭉 (작은 프로펠러 비행기 → 전투기 → 여객기 순서)
     const extras = window.SIZE_ORDER.filter((id) => !window.FIGHTERS.includes(id) && !window.AIRLINERS.includes(id));
-    const groups = [
-      ["🛡️ 하늘을 지키는 비행기", window.FIGHTERS],
-      ["✈️ 사람을 태우는 비행기", window.AIRLINERS],
-      ["🛩️ 작은 프로펠러 비행기", extras],
-    ];
+    const pickIds = [...extras, ...window.FIGHTERS, ...window.AIRLINERS].filter(comparable);
 
     app.innerHTML = `
       <section class="size compare" style="${theme("size")}">
@@ -1098,22 +1114,19 @@
               ${VS_SLOTS.map((s, k) => `${k ? '<span class="vs-mark" aria-hidden="true">VS</span>' : ""}
                 <button class="vs-slot" data-slot="${k}" style="--slot:${s.color}"></button>`).join("")}
             </div>
-            <div class="size-facts" id="vs-facts"></div>
             <div class="size-note" id="vs-note"></div>
           </div>
-          <button class="small-btn" id="vs-reset">🔁 다시 고르기</button>
+          <button class="small-btn vs-reset" id="vs-reset">🔁 다시 고르기</button>
         </div>
         <div class="vs-picker">
           <h3 class="vs-picker-title" id="vs-picker-title"></h3>
           <p class="vs-picker-hint" id="vs-picker-hint" hidden>다른 쪽을 바꾸고 싶으면 위의 1번이나 2번 칸을 눌러요</p>
-          ${groups.map(([label, ids]) => `
-            <div class="pick-group-title">${label}</div>
-            <div class="pick-grid">
-              ${ids.filter(comparable).map((id) => `
-                <button class="pick-plane" data-id="${id}" aria-label="${P[id].name}">
-                  ${planeImg(id, { thumb: true })}<span>${P[id].name}</span><b class="pick-num" aria-hidden="true"></b>
-                </button>`).join("")}
-            </div>`).join("")}
+          <div class="pick-grid">
+            ${pickIds.map((id) => `
+              <button class="pick-plane" data-id="${id}" aria-label="${P[id].name}">
+                ${planeImg(id, { thumb: true })}<span>${P[id].name}</span><b class="pick-num" aria-hidden="true"></b>
+              </button>`).join("")}
+          </div>
         </div>
       </section>`;
 
@@ -1192,8 +1205,7 @@
       msg.textContent = !a && !b ? "비교하고 싶은 비행기 2대를 골라요 👇" : a && b ? "" : "하나 더 골라요 👇";
       msg.hidden = !msg.textContent;
       msg.classList.toggle("top", !!(a || b)); // 비행기가 있으면 가리지 않게 위쪽으로
-      app.querySelector("#vs-facts").innerHTML = sel.map((id, n) => id
-        ? `<span class="chip" style="--slot:${VS_SLOTS[n].color}">${VS_SLOTS[n].mark} 📏 ${P[id].length}m · 🏢 높이 ${P[id].height}m</span>` : "").join("");
+      // 길이·높이 숫자는 따로 적지 않고, 두 비행기를 비교하는 한 줄 설명만
       const note = a && b ? compareText(sel[0], sel[1]) : "";
       app.querySelector("#vs-note").textContent = note;
       app.querySelector("#vs-reset").hidden = !a && !b;
@@ -1410,14 +1422,15 @@
     if (!nav || nav.noSwipe) return; // 고르기 화면에서는 밀기로 잘못 고르지 않게 막음
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { Sound.click(); (dx < 0 ? nav.next : nav.prev)(); }
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { if (!nav.quiet) Sound.click(); (dx < 0 ? nav.next : nav.prev)(); }
   }, { passive: true });
 
   // 키보드 ← → 로도 넘기기
   document.addEventListener("keydown", (e) => {
     if (!nav || e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "ArrowRight") { e.preventDefault(); Sound.click(); nav.next(); }
-    if (e.key === "ArrowLeft") { e.preventDefault(); Sound.click(); nav.prev(); }
+    // nav.quiet: 넘기면 바로 착륙 소리가 나는 화면(크기 비교)은 딸깍 없이
+    if (e.key === "ArrowRight") { e.preventDefault(); if (!nav.quiet) Sound.click(); nav.next(); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); if (!nav.quiet) Sound.click(); nav.prev(); }
   });
 
   Sound.init();

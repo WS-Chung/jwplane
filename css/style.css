@@ -498,14 +498,16 @@ main:has(> .gallery) { padding-bottom: 12px; }
 .vs-slot .slot-num { flex: none; font-size: 18px; color: var(--slot); }
 .vs-slot.empty { border-style: dashed; color: var(--ink-soft); }
 .vs-slot.active { box-shadow: 0 0 0 5px color-mix(in srgb, var(--slot) 30%, transparent); }
-.vs-info .chip { border: 2px solid var(--slot); background: #fff; }
+/* 다시 고르기: 처음(48px)의 2배 높이, "골라서 비교하기"와 같은 노란색 */
+.small-btn.vs-reset { min-height: 96px; padding: 10px 28px; border-radius: 26px; background: var(--accent); color: var(--accent-ink, var(--ink)); }
+.small-btn.vs-reset[hidden] { display: none; }
 .vs-picker { margin-top: 16px; padding: 14px 18px 20px; border-radius: 26px; background: rgba(255,255,255,.85); box-shadow: var(--shadow); }
 .vs-picker-title {
   margin: 0 0 6px; text-align: center; font-weight: normal; font-size: clamp(22px, 3vw, 30px);
   color: var(--slot);
 }
-.pick-group-title { margin: 12px 0 8px; font-size: 20px; color: #1f5d8c; text-align: center; }
-.pick-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+/* 고르기 목록: 종류별 제목 없이 한 묶음 (작은 프로펠러 비행기 → 전투기 → 여객기) */
+.pick-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
 .pick-plane {
   position: relative; --box-h: 52px; width: 150px; padding: 8px 6px; border: none; border-radius: 16px; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
