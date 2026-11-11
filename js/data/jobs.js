@@ -31,7 +31,7 @@ window.JOBS = {
   // 항공 유도원(마셜러): 공항 땅 위에서 손짓과 막대로 비행기를 세울 자리까지 안내하는 사람
   marshaller: {
     title: "항공 유도원", easy: "비행기 주차 안내원", emoji: "🦺",
-    photo: "", photoCaption: "",
+    photo: "images/jobs/marshal.jpg", photoCaption: "막대를 X 모양으로 엇갈려 “멈추세요!” 하는 유도원님",
     intro: "공항 땅 위에서 두 손에 막대를 들고 “이쪽으로 오세요, 여기서 멈추세요” 하고 손짓으로 알려줘요. 조종사님은 이 손짓을 보고 비행기를 세워요.",
     scenes: [
       { emoji: "🙌", title: "제가 안내할게요!", text: "비행기가 오면 두 팔을 머리 위로 쭉 뻗어요. “제가 길을 알려 줄게요!” 하는 신호예요." },
