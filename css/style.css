@@ -28,6 +28,7 @@
   --c-pilot: #64b5f6;       /* 파: 하늘색에 가까운 옅은 파랑 */
   --c-pilot-ink: #23324a;
   --c-pilot-text: #1e78c8;
+  --c-marshaller: #1976d2;  /* 항공 유도원: 조종사 하늘색과 관제사 남색 사이의 선명한 파랑 (카드도 그 사이) */
   --c-controller: #283593;  /* 남 */
   --c-mechanic: #8e24aa;    /* 보 */
   --topbar-h: 72px;

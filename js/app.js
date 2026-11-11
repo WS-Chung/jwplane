@@ -33,7 +33,8 @@
     { name: "정연", height: 1.1, cls: "girl", svg: "" },  // 여자아이 110cm
   ];
   const MAX_SPEED = Math.max(...Object.values(P).map((p) => p.speed));
-  const JOB_KEYS = ["pilot", "controller", "mechanic"];
+  // 처음 화면 직업 카드 순서 (항공 유도원은 조종사와 관제사 사이)
+  const JOB_KEYS = ["pilot", "marshaller", "controller", "mechanic"];
 
   let nav = null;     // 지금 화면의 ◀ ▶ 동작 (키보드·밀기에서 사용)
   let cleanup = null; // 화면을 떠날 때 정리할 일
@@ -48,6 +49,12 @@
   // 메뉴별 테마 색 (처음 화면 순서대로 빨·주·노·초·파·남·보, 색은 css의 --c-…)
   // 노랑·하늘색처럼 밝은 색은 그 위에 쓰는 글씨를 진하게(--c-…-ink), 흰 바탕 위 글씨는 조금 진한 색(--c-…-text)으로
   const theme = (name) => `--accent:var(--c-${name});--accent-ink:var(--c-${name}-ink, #fff);--accent-text:var(--c-${name}-text, var(--c-${name}))`;
+  // 낱말 끝 받침에 맞는 조사 붙이기: josa("조종사", "이", "가") → "조종사가", josa("항공 유도원", "이", "가") → "항공 유도원이"
+  const josa = (word, withFinal, withoutFinal) => {
+    const c = word.charCodeAt(word.length - 1);
+    const hasFinal = c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 !== 0;
+    return word + (hasFinal ? withFinal : withoutFinal);
+  };
   const countryName = (p) => p.countryText || p.country.map((c) => C[c].name).join("·");
   const listOf = (kind) => (kind === "fighters" ? window.FIGHTERS : window.AIRLINERS);
   // 목록 카드 이름: 낱말 중간(E195-E2)에서 줄이 바뀌지 않게 낱말마다 묶고,
@@ -394,7 +401,7 @@
     setTitle("하늘 친구들");
     const done = Store.get();
     const jobCards = JOB_KEYS.map((k) =>
-      menuCard(`#/job/${k}`, k, `<span class="emoji">${J[k].emoji}</span>`, J[k].easy, `${J[k].title}가 하는 일`)
+      menuCard(`#/job/${k}`, k, `<span class="emoji">${J[k].emoji}</span>`, J[k].easy, `${josa(J[k].title, "이", "가")} 하는 일`)
     ).join("");
     app.innerHTML = `
       <section class="home">
@@ -673,7 +680,7 @@
       const done = Store.get()[key] || [];
       return {
         html: `<div class="slide-kicker">나도 될래요!</div>
-          <h2 class="slide-title">${j.title}가 되고 싶다면!</h2>
+          <h2 class="slide-title">${josa(j.title, "이", "가")} 되고 싶다면!</h2>
           <p class="promise-hint">약속할 수 있으면 눌러서 도장을 꾹 찍어요 👆</p>
           <div class="promise-grid">
             ${j.promises.map((pr, n) => `
@@ -731,8 +738,8 @@
     box.setAttribute("style", theme(key));
     box.innerHTML = `<div class="celebrate-box" role="dialog" aria-label="배지 받기">
       <div class="medal-big" aria-hidden="true">${j.badge.emoji}</div>
-      <h2>${j.badge.name}를 받았어요!</h2>
-      <p>약속을 모두 지키면 멋진 ${j.title}가 될 수 있어요.</p>
+      <h2>${josa(j.badge.name, "을", "를")} 받았어요!</h2>
+      <p>약속을 모두 지키면 멋진 ${josa(j.title, "이", "가")} 될 수 있어요.</p>
       <button class="big-btn">고마워요!</button>
     </div>`;
     box.querySelector("button").addEventListener("click", () => box.remove());
